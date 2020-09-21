@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
 model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
 #model_dir=gs://neulab-qa/unifiedqa/models/3B
 
@@ -8,7 +9,7 @@ model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
     --gcp_project="${PROJECT}" \
     --tpu_zone="${ZONE}" \
     --model_dir="${model_dir}" \
-    --gin_file="gs://neulab-qa/t5-data/pretrained_models/3B/operative_config.gin" \
+    --gin_file="${gin_model_dir}/operative_config.gin" \
     --gin_file="score_from_file.gin" \
     --gin_file="greedy_decode.gin" \
     --gin_param="inputs_filename = 'test.prep.input/dev_input.txt'" \
