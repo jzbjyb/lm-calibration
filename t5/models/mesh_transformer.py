@@ -77,7 +77,7 @@ def mesh_train_dataset_fn(
   feature_keys = tuple(k for k in mixture_or_task.output_features
                        if k in tf.data.get_output_shapes(ds))
   ds = transformer_dataset.pack_or_pad(
-      ds, sequence_length, pack=True,
+      ds, sequence_length, pack=False,  # TODO: debug
       feature_keys=feature_keys, ensure_eos=True)
   return ds
 

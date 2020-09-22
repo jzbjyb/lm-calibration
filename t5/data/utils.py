@@ -31,6 +31,7 @@ import numpy as np
 from t5.data import sentencepiece_vocabulary
 import tensorflow.compat.v1 as tf
 import tensorflow_datasets as tfds
+from mesh_tensorflow.transformer.utils import _filter_features
 
 _DEFAULT_FEATURE_KEYS = ["inputs", "targets"]
 
@@ -1022,7 +1023,7 @@ class Mixture(DatasetProviderBase):
     datasets = [
         task.get_dataset(sequence_length, split, use_cached, shuffle=shuffle)  # pylint:disable=g-complex-comprehension
         .repeat()
-        .map(filter_features, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        .map(_filter_features, num_parallel_calls=tf.data.experimental.AUTOTUNE)  # TODO: debug
         for task in tasks]
     rates = [self.get_rate(task) for task in tasks]
     # Sample from the dataset with the rates rates

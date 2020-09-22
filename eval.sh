@@ -10,7 +10,7 @@ model_dir=gs://neulab-qa/t5-data/pretrained_models/small
     --tpu_zone="${ZONE}" \
     --model_dir="${model_dir}" \
     --gin_file="${gin_model_dir}/operative_config.gin" \
-    --t5_tfds_data_dir=${DATA_DIR} \
+    --t5_tfds_data_dir="${DATA_DIR}" \
     --gin_file="eval.gin" \
     --gin_file="greedy_decode.gin" \
     --gin_param="run.dataset_split = 'dev'" \
