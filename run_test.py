@@ -33,7 +33,7 @@ def test_dataset_fn(split, shuffle_files=False):
   ds = tf.data.experimental.CsvDataset(csv_files, record_defaults=['', '', '', '', '', ''])
 
   # Convert each tuple to a {"question": ... "answer": ...} dict.
-  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weight'],
+  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'],
                                    compose_qa_pair(ex[0], ex[1:5], ex[5]) + (1.0,))))
 
   return ds
@@ -48,7 +48,7 @@ def trivia_preprocessor(ds):
     return {
       'inputs': normalize_text(ex['question']),
       'targets': normalize_text(ex['answer']),
-      'weight': ex['weight']
+      'weights': ex['weights']
     }
 
   return ds.map(to_inputs_and_targets, num_parallel_calls=tf.data.experimental.AUTOTUNE)

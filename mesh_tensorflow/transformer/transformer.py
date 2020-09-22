@@ -751,13 +751,14 @@ class Unitransformer(object):
   def ensemble_dims(self):
     return [self.ensemble_dim] if self.ensemble_dim else []
 
-  def _compute_loss(self, context, logits, targets, output_vocab_dim):
+  def _compute_loss(self, context, logits, targets, weights, output_vocab_dim):
     """Regular cross entropy loss.
 
     Args:
       context: a Context
       logits: a Tensor, the logits from the decoder
       targets: an Tensor
+      weights: a Tensor
       output_vocab_dim: a Dimension
 
     Returns:
@@ -779,15 +780,18 @@ class Unitransformer(object):
         soft_targets,
         output_vocab_dim,
         z_loss=self.z_loss if context.train else 0.0)
-    weights = mtf.layers.weights_nonzero(
+    _weights = mtf.layers.weights_nonzero(
         targets, dtype=context.activation_dtype)
     if self.loss_on_targets_only:
-      weights *= mtf.cast(mtf.logical_not(delimited_lm_inputs_mask(targets)),
+      _weights *= mtf.cast(mtf.logical_not(delimited_lm_inputs_mask(targets)),
                           dtype=context.activation_dtype)
-    return (mtf.reduce_sum(loss * weights) /
+    weight_loss = loss * _weights
+    if weights is not None:
+      weight_loss = weight_loss * mtf.to_bfloat16(weights)
+    return (mtf.reduce_sum(weight_loss) /
             self.loss_denominator(targets, context.num_microbatches))
 
-  def _call_internal(self, context, inputs, targets=None):
+  def _call_internal(self, context, inputs, targets=None, weights=None):
     """Compute logits based on inputs (all positions in parallel).
 
     Also updates context if applicable.
@@ -796,6 +800,7 @@ class Unitransformer(object):
       context: a Context
       inputs: a Tensor
       targets: an optional Tensor
+      weights: an optional Tensor
 
     Returns:
       logits: a Tensor with shape [<batch_dims>, length_dim, output_vocab_dim]
@@ -868,7 +873,7 @@ class Unitransformer(object):
           name="logits")
     if targets is not None and context.losses is not None:
       context.losses.append(
-          self._compute_loss(context, logits, targets, self.output_vocab_dim))
+          self._compute_loss(context, logits, targets, weights, self.output_vocab_dim))
     if self.ensemble_dim:
       logits = reduce_ensemble_logits(
           logits, self.ensemble_dim, self.output_vocab_dim)
@@ -912,7 +917,8 @@ class Unitransformer(object):
                   shared_params=None,
                   layer_outputs=None,
                   encoder_layer_outputs=None,
-                  num_microbatches=1):
+                  num_microbatches=1,
+                  weights=None):
     """Compute logits based on inputs (all positions in parallel).
 
     This is called during training and evaluation.
@@ -937,6 +943,7 @@ class Unitransformer(object):
         decoding, one per each input layer + the embedding layer
       num_microbatches: integer - greater than one if the step has been
         serialized into multiple microbatches to save memory.
+      weights: an optional float32 Tensor with shape [<batch_dims>]
 
     Returns:
       logits: a Tensor with shape [<batch_dims>, output_vocab_dim]
@@ -998,7 +1005,7 @@ class Unitransformer(object):
         encoder_inputs=encoder_inputs,
         num_microbatches=num_microbatches)
     with tf.variable_scope(self.name):
-      logits = self._call_internal(context, inputs, targets)
+      logits = self._call_internal(context, inputs, targets, weights)
     if compute_loss:
       loss = mtf.add_n(context.losses)
     else:
@@ -1433,7 +1440,8 @@ class Bitransformer(object):
                   decoder_subsequence_id=None,
                   encoder_position=None,
                   decoder_position=None,
-                  num_microbatches=1):
+                  num_microbatches=1,
+                  weights=None):
     """Compute logits based on inputs (all positions in parallel).
 
     This is called during training and evaluation.
@@ -1451,6 +1459,7 @@ class Bitransformer(object):
       decoder_position: an optional Tensor
       num_microbatches: integer - greater than one if the step has been
         serialized into multiple microbatches to save memory.
+      weights: an optional float32 Tensor with shape [<batch_dims>]
 
     Returns:
       logits: a Tensor with shape [<batch_dims>, output_vocab_dim]
@@ -1476,7 +1485,8 @@ class Bitransformer(object):
         position=encoder_position,
         shared_params=shared_params,
         layer_outputs=encoder_layer_outputs,
-        num_microbatches=num_microbatches)
+        num_microbatches=num_microbatches,
+        weights=None)
     encoder_output = mtf.layers.rename_length_to_memory_length(encoder_output)
     if encoder_sequence_id is not None:
       encoder_sequence_id = mtf.layers.rename_length_to_memory_length(
@@ -1496,7 +1506,8 @@ class Bitransformer(object):
         position=decoder_position,
         shared_params=shared_params,
         encoder_layer_outputs=encoder_layer_outputs,
-        num_microbatches=num_microbatches)
+        num_microbatches=num_microbatches,
+        weights=weights)
     if loss is not None and encoder_loss is not None:
       loss += encoder_loss
     return logits, loss

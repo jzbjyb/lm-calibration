@@ -58,7 +58,7 @@ _DEFAULT_CONFIG_FILE = "./gin/defaults.gin"
 _MODEL_FEATURES = [
     "inputs", "inputs_position", "inputs_segmentation", "targets",
     "targets_position", "targets_segmentation", "targets_subsegmentation",
-    "weight"  # TODO: debug
+    "weights"  # TODO: debug
 ]
 
 
@@ -612,6 +612,7 @@ def tpu_estimator_model_fn(model_type,
       return transformer_model.call_simple(
           inputs=inputs,
           targets=mtf_features["targets"],
+          weights=mtf_features["weights"],
           compute_loss=True,
           mode=mode,
           variable_dtype=get_variable_dtype(),

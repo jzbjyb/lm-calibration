@@ -15,4 +15,4 @@ model_dir=gs://neulab-qa/t5-data/pretrained_models/small_ft
     --gin_param="utils.tpu_mesh_shape.model_parallelism = 1" \
     --gin_param="utils.tpu_mesh_shape.tpu_topology = '${TPU_SIZE}'" \
     --gin_param="MIXTURE_NAME = 'multi_test_mix'" \
-    --gin_param="run.train_steps = 100100"
+    --gin_param="run.train_steps = 1000100"
