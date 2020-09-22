@@ -1,4 +1,4 @@
-import argparse
+from typing import List
 import os
 import csv
 from operator import itemgetter
@@ -7,7 +7,8 @@ import random
 import numpy as np
 from scipy.special import softmax
 import matplotlib.pyplot as plt
-from run_test import IND2CHAR, CHAR2IND
+from dataset.utils import IND2CHAR, CHAR2IND
+from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, one2multi
 
 SEED = 2021
 random.seed(SEED)
@@ -147,8 +148,19 @@ def acc(csv_file, answer_file, logit_file):
   plt.close()
 
 
+def convert_uq(domain: str, splits: List[str], format: str='tsv'):
+  for split in splits:
+    in_fname = os.path.join(UNIFIEDQA_GS, domain, split + '.' + format)
+    out_fname = os.path.join(UNIFIEDQA_PREP_GS, domain, split + '.' + format)
+    print('{} -> {}'.format(in_fname, out_fname))
+    one2multi(in_fname, out_fname)
+
+
 if __name__ == '__main__':
   # combine('test', 'test.prep')
   # get_input('test.prep', 'test.prep.input')
   # get_input_unifiedqa('test.prep', 'test.prep.unifiedqa_input')
-  acc('test.prep/test.csv', 'test.prep.unifiedqa_input/test_target.txt', 'output/answer/unifiedqa_test_score.txt')
+
+  #acc('test.prep/test.csv', 'test.prep.unifiedqa_input/test_target.txt', 'output/answer/unifiedqa_test_score.txt')
+
+  convert_uq('arc_easy', ['train', 'dev', 'test'])
