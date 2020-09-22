@@ -8,7 +8,7 @@ import numpy as np
 from scipy.special import softmax
 import matplotlib.pyplot as plt
 from dataset.utils import IND2CHAR, CHAR2IND
-from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, one2multi
+from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, DOMAINS, one2multi
 
 SEED = 2021
 random.seed(SEED)
@@ -163,4 +163,5 @@ if __name__ == '__main__':
 
   #acc('test.prep/test.csv', 'test.prep.unifiedqa_input/test_target.txt', 'output/answer/unifiedqa_test_score.txt')
 
-  convert_uq('arc_easy', ['train', 'dev', 'test'])
+  for domain, splits in DOMAINS:
+    convert_uq(domain, splits)
