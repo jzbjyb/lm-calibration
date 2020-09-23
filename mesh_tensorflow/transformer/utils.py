@@ -1255,9 +1255,6 @@ def score_from_strings(estimator, vocabulary, model_type, batch_size,
   Returns:
     a list of floats
   """
-  inputs = 'test.prep.unifiedqa_input/test_input.txt'
-  targets = 'test.prep.unifiedqa_input/test_target.txt'
-  scores_filename = 'output/test_score.txt'
   if isinstance(inputs, str):
     inputs = get_inputs_from_file(inputs)
   if isinstance(targets, str):
