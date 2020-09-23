@@ -1,6 +1,5 @@
 from typing import Tuple, Union
 import functools
-import hashlib
 import os
 import tensorflow as tf
 import t5
@@ -23,6 +22,11 @@ TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
                 ('physical_iqa', ('train', 'dev', 'test')),
                 ('social_iqa', ('train', 'dev')),
                 ('race_string', ('train', 'dev', 'test'))]
+SUB_TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
+                    ('ai2_science_middle', ('train', 'dev', 'test')),
+                    ('winogrande_m', ('train', 'dev')),
+                    ('winogrande_s', ('train', 'dev')),
+                    ('mctest_corrected_the_separator', ('train', 'dev'))]
 DOMAINS = TRAIN_DOMAINS + TEST_DOMAINS
 
 
@@ -95,6 +99,8 @@ def unifiedqa_dataset_fn(split: str,
       return question, answer, 1.0 if is_correct else -1.0 / 4
     if neg_method == 'indicator':
       return tf.strings.join([question, ('True:' if is_correct else 'False:')], separator=' '), answer, 1.0
+    if neg_method == 'indicator_eval':
+      return tf.strings.join([question, 'True'], separator=' '), answer, 1.0
     raise NotImplementedError
   ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
   ds = ds.filter(lambda *ex: use_neg or ex[-1] == 'True')
@@ -119,3 +125,9 @@ def build_uq(neg_method: str='indicator'):
   t5.data.MixtureRegistry.add('uq_train_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_test_mix')
   t5.data.MixtureRegistry.add('uq_test_mix', ['uq_{}'.format(domain) for domain, _ in TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_sub_test_mix')
+  t5.data.MixtureRegistry.add('uq_sub_test_mix', ['uq_{}'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_all_mix')
+  t5.data.MixtureRegistry.add('uq_all_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS + TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_sub_all_mix')
+  t5.data.MixtureRegistry.add('uq_sub_all_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS + SUB_TEST_DOMAINS], default_rate=1.0)

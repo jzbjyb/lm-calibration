@@ -1337,21 +1337,21 @@ def score_from_dataset(estimator, vocabulary, batch_size, sequence_length,
       sequence_length=sequence_length,
       vocabulary=vocabulary,
       dataset_split=dataset_split)
-  if len(scoring_datasets) != 1:
-    raise ValueError("Only scoring from a single dataset supported.")
-  scoring_dataset = scoring_datasets[0]
 
   def input_fn(params):
     """Eval input function for estimator."""
     del params
-    dataset = scoring_dataset.dataset_fn()
-    dataset = dataset.map(_filter_features)
-    dataset = dataset.batch(batch_size, drop_remainder=False)
+    combined_ds = None
+    for ds in scoring_datasets:
+      ds = ds.dataset_fn()
+      ds = ds.map(_filter_features)
+      combined_ds = ds if not combined_ds else combined_ds.concatenate(ds)
+    combined_ds = combined_ds.batch(batch_size, drop_remainder=False)
     # Pad the final batch.
-    dataset = transformer_dataset.trim_and_pad_dataset(
-        dataset, length=batch_size)
-    dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    return dataset
+    combined_ds = transformer_dataset.trim_and_pad_dataset(
+      combined_ds, length=batch_size)
+    combined_ds = combined_ds.prefetch(tf.data.experimental.AUTOTUNE)
+    return combined_ds
 
   # TODO(dei): Since we pass in the num_examples as None, scores for the
   # padding examples will get written to the output file. Should fix this.

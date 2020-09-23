@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 
-output=output/test.txt
-neg_method=weight
+neg_method=$1
+output=$2
+model_dir=$3  # gs://neulab-qa/unifiedqa/models/3B, gs://neulab-qa/t5-data/pretrained_models/3B
+step=$4  # 1100500
+mix=$5
 
 tpu_name=jzb
 gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
-#model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
-model_dir=gs://neulab-qa/unifiedqa/models/3B
-step=1100500
 tpb=32768
-
-mix=uq_arc_hard_mix
 split=dev
 
 ./run_test.py \

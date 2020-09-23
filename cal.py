@@ -1,3 +1,4 @@
+import argparse
 from operator import itemgetter
 import numpy as np
 from scipy.special import softmax
@@ -66,13 +67,16 @@ def acc(mixture: str, score_file: str, split: str='dev'):
   plt.savefig('test.png')
   plt.close()
 
+  print('ece', ece)
+
 
 if __name__ == '__main__':
-  # init gin
-  gin.add_config_file_search_path('t5/models/gin')
-  utils.parse_gin_defaults_and_flags()
+  parser = argparse.ArgumentParser(description='calibration computation')
+  parser.add_argument('--mix', type=str, help='mixture', default='uq_sub_test_mix')
+  parser.add_argument('--score', type=str, help='score file')
+  args = parser.parse_args()
 
   # build tasks and mixtures
   build_uq(neg_method='weight')
 
-  acc('uq_arc_hard_mix', 'output/test.txt')
+  acc(args.mix, args.score)

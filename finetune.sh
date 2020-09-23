@@ -2,6 +2,7 @@
 
 neg_method=$1
 output=$2
+train_steps=$3  # 1105000
 
 tpu_name=default-dgdw2
 gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
@@ -10,7 +11,6 @@ gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
 from_model=gs://neulab-qa/unifiedqa/models/3B/model.ckpt-1100500
 to_model_dir=gs://neulab-qa/unifiedqa/models/${output}
 model_parallelism=8
-train_steps=1101000
 tpb=16384
 
 ./run_test.py \
