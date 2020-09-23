@@ -995,6 +995,7 @@ class Mixture(DatasetProviderBase):
       use_cached=False,
       shuffle=True,
       compute_stats_empirically=False,
+      use_filter=True
   ):
     """Returns the dataset of mixed tasks using the object-specified rates.
 
@@ -1006,6 +1007,7 @@ class Mixture(DatasetProviderBase):
       shuffle: bool, whether to shuffle the dataset.  Only used when generating
         on the fly (use_cached=False).
       compute_stats_empirically: a boolean - does not work on TPU
+      use_filter: use filter to remove unnecessary keys
     """
     self._check_same_vocabularies()
     tasks = []
@@ -1022,9 +1024,11 @@ class Mixture(DatasetProviderBase):
       return {k: v for k, v in ex.items() if k in self.output_features}
     datasets = [
         task.get_dataset(sequence_length, split, use_cached, shuffle=shuffle)  # pylint:disable=g-complex-comprehension
-        .repeat()
-        .map(_filter_features, num_parallel_calls=tf.data.experimental.AUTOTUNE)  # TODO: debug
         for task in tasks]
+    if use_filter:  # TODO: debug
+      datasets = [
+        ds.repeat().map(_filter_features, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        for ds in datasets]
     rates = [self.get_rate(task) for task in tasks]
     # Sample from the dataset with the rates rates
     seed = None if shuffle else 42

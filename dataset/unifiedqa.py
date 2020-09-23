@@ -1,5 +1,6 @@
 from typing import Tuple, Union
 import functools
+import hashlib
 import os
 import tensorflow as tf
 import t5
@@ -87,6 +88,7 @@ def unifiedqa_dataset_fn(split: str,
     tf.io.decode_csv, record_defaults=['', '', '', ''], field_delim='\t', use_quote_delim=False),
     num_parallel_calls=tf.data.experimental.AUTOTUNE)
   def map_fn(ind: str, question: str, answer: str, correct: str):
+    # ind = tf.strings.join([file, ind], separator='|')
     question = tf.strings.regex_replace(question, '\\\\n', '\n')
     is_correct = correct == 'True'
     if neg_method == 'weight':
