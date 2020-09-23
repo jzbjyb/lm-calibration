@@ -3,25 +3,26 @@ import functools
 import os
 import tensorflow as tf
 import t5
+import gin
 from .utils import trivia_preprocessor
 
 UNIFIEDQA_GS = 'gs://unifiedqa/data'
 UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
-DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
-           ('ai2_science_elementary', ('train', 'dev', 'test')),
-           ('openbookqa', ('train', 'dev', 'test')),
-           ('qasc', ('train', 'dev')),
-           ('winogrande_l', ('train', 'dev')),
-           ('commonsenseqa', ('train', 'dev')),
-
-           ('arc_hard', ('train', 'dev', 'test')),
-           ('ai2_science_middle', ('train', 'dev', 'test')),
-           ('winogrande_m', ('train', 'dev')),
-           ('winogrande_s', ('train', 'dev')),
-           ('mctest_corrected_the_separator', ('train', 'dev')),
-           ('physical_iqa', ('train', 'dev', 'test')),
-           ('social_iqa', ('train', 'dev')),
-           ('race_string', ('train', 'dev', 'test'))]
+TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
+                 ('ai2_science_elementary', ('train', 'dev', 'test')),
+                 ('openbookqa', ('train', 'dev', 'test')),
+                 ('qasc', ('train', 'dev')),
+                 ('winogrande_l', ('train', 'dev')),
+                 ('commonsenseqa', ('train', 'dev'))]
+TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
+                ('ai2_science_middle', ('train', 'dev', 'test')),
+                ('winogrande_m', ('train', 'dev')),
+                ('winogrande_s', ('train', 'dev')),
+                ('mctest_corrected_the_separator', ('train', 'dev')),
+                ('physical_iqa', ('train', 'dev', 'test')),
+                ('social_iqa', ('train', 'dev')),
+                ('race_string', ('train', 'dev', 'test'))]
+DOMAINS = TRAIN_DOMAINS + TEST_DOMAINS
 
 
 def compose_qa_pair(question: str,
@@ -83,10 +84,10 @@ def unifiedqa_dataset_fn(split: str,
 
   ds = tf.data.TextLineDataset(file)
   ds = ds.map(functools.partial(
-    tf.io.decode_csv, record_defaults=['', '', ''], field_delim='\t', use_quote_delim=False),
+    tf.io.decode_csv, record_defaults=['', '', '', ''], field_delim='\t', use_quote_delim=False),
     num_parallel_calls=tf.data.experimental.AUTOTUNE)
-  def map_fn(question, answer, correct):
-    question = question.replace('\\n', '\n')
+  def map_fn(ind: str, question: str, answer: str, correct: str):
+    question = tf.strings.regex_replace(question, '\\\\n', '\n')
     is_correct = correct == 'True'
     if neg_method == 'weight':
       return question, answer, 1.0 if is_correct else -1.0
@@ -98,14 +99,21 @@ def unifiedqa_dataset_fn(split: str,
   return ds
 
 
-for domain, splits in DOMAINS:
-  t5.data.TaskRegistry.add(
-    'uq_{}'.format(domain),
-    dataset_fn=functools.partial(unifiedqa_dataset_fn, domain=domain, use_neg=True, neg_method='indicator'),
-    splits=splits,
-    text_preprocessor=[trivia_preprocessor],
-    postprocess_fn=t5.data.postprocessors.lower_text,
-    metric_fns=[t5.evaluation.metrics.accuracy])
+@gin.configurable
+def build_uq(neg_method: str='indicator'):
+  for domain, splits in DOMAINS:
+    t5.data.TaskRegistry.add(
+      'uq_{}'.format(domain),
+      dataset_fn=functools.partial(unifiedqa_dataset_fn, domain=domain, use_neg=True, neg_method=neg_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
 
-  t5.data.MixtureRegistry.remove('uq_{}_mix'.format(domain))
-  t5.data.MixtureRegistry.add('uq_{}_mix'.format(domain), ['uq_{}'.format(domain)], default_rate=1.0)
+    t5.data.MixtureRegistry.remove('uq_{}_mix'.format(domain))
+    t5.data.MixtureRegistry.add('uq_{}_mix'.format(domain), ['uq_{}'.format(domain)], default_rate=1.0)
+
+  t5.data.MixtureRegistry.remove('uq_train_mix')
+  t5.data.MixtureRegistry.add('uq_train_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_test_mix')
+  t5.data.MixtureRegistry.add('uq_test_mix', ['uq_{}'.format(domain) for domain, _ in TEST_DOMAINS], default_rate=1.0)
