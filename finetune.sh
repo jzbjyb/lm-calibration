@@ -15,9 +15,9 @@ to_model_dir=gs://neulab-qa/unifiedqa/models/3B_ft_ind
     --t5_tfds_data_dir="${DATA_DIR}" \
     --gin_file="dataset.gin" \
     --gin_param="run.init_checkpoint = '${from_model}'" \
-    --gin_param="utils.tpu_mesh_shape.model_parallelism = 1" \
+    --gin_param="utils.tpu_mesh_shape.model_parallelism = 8" \
     --gin_param="utils.tpu_mesh_shape.tpu_topology = '${TPU_SIZE}'" \
-    --gin_param="MIXTURE_NAME = 'uq_arc_easy_mix'" \
-    --gin_param="run.train_steps = 1100600" \
+    --gin_param="MIXTURE_NAME = 'uq_train_mix'" \
+    --gin_param="run.train_steps = 1105000" \
     --gin_param="build_uq.neg_method = 'indicator'" \
-    --gin_param="run.batch_size = ('tokens_per_batch', 32768)"
+    --gin_param="run.batch_size = ('tokens_per_batch', 16384)"

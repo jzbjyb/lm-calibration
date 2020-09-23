@@ -90,7 +90,7 @@ def unifiedqa_dataset_fn(split: str,
     question = tf.strings.regex_replace(question, '\\\\n', '\n')
     is_correct = correct == 'True'
     if neg_method == 'weight':
-      return question, answer, 1.0 if is_correct else -1.0
+      return question, answer, 1.0 if is_correct else -1.0 / 4
     if neg_method == 'indicator':
       return tf.strings.join([question, ('True:' if is_correct else 'False:')], separator=' '), answer, 1.0
     raise NotImplementedError
