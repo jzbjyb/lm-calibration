@@ -1,10 +1,9 @@
 from typing import Tuple, Union
 import functools
-import os
 import tensorflow as tf
 import t5
 import gin
-from .utils import trivia_preprocessor
+from .utils import trivia_preprocessor, qa_dataset_fn
 
 UNIFIEDQA_GS = 'gs://unifiedqa/data'
 UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
@@ -79,40 +78,13 @@ def one2multi(in_fname: str, out_fname: str):
       assert cc >= 1, '#correct answer is {}, should >= 1, question is "{}", answer is "{}"'.format(cc, question, answer)
 
 
-def unifiedqa_dataset_fn(split: str,
-                         shuffle_files: bool=False,
-                         domain: str='',
-                         format: str='tsv',
-                         use_neg: bool=False,
-                         neg_method: str='weight'):
-  file = os.path.join(UNIFIEDQA_PREP_GS, domain, split + '.' + format)
-
-  ds = tf.data.TextLineDataset(file)
-  ds = ds.map(functools.partial(
-    tf.io.decode_csv, record_defaults=['', '', '', ''], field_delim='\t', use_quote_delim=False),
-    num_parallel_calls=tf.data.experimental.AUTOTUNE)
-  def map_fn(ind: str, question: str, answer: str, correct: str):
-    # ind = tf.strings.join([file, ind], separator='|')
-    question = tf.strings.regex_replace(question, '\\\\n', '\n')
-    is_correct = correct == 'True'
-    if neg_method == 'weight':
-      return question, answer, 1.0 if is_correct else -1.0 / 4
-    if neg_method == 'indicator':
-      return tf.strings.join([question, ('True:' if is_correct else 'False:')], separator=' '), answer, 1.0
-    if neg_method == 'indicator_eval':
-      return tf.strings.join([question, 'True'], separator=' '), answer, 1.0
-    raise NotImplementedError
-  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
-  ds = ds.filter(lambda *ex: use_neg or ex[-1] == 'True')
-  return ds
-
-
 @gin.configurable
 def build_uq(neg_method: str='indicator'):
   for domain, splits in DOMAINS:
     t5.data.TaskRegistry.add(
       'uq_{}'.format(domain),
-      dataset_fn=functools.partial(unifiedqa_dataset_fn, domain=domain, use_neg=True, neg_method=neg_method),
+      dataset_fn=functools.partial(
+        qa_dataset_fn, bucket=UNIFIEDQA_PREP_GS, domain=domain, use_neg=True, neg_method=neg_method),
       splits=splits,
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,

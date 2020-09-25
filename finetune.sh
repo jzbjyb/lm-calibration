@@ -26,5 +26,5 @@ tpb=16384
     --gin_param="utils.tpu_mesh_shape.tpu_topology = '${TPU_SIZE}'" \
     --gin_param="MIXTURE_NAME = 'uq_train_mix'" \
     --gin_param="run.train_steps = ${train_steps}" \
-    --gin_param="build_uq.neg_method = '${neg_method}'" \
+    --gin_param="build.neg_method = '${neg_method}'" \
     --gin_param="run.batch_size = ('tokens_per_batch', ${tpb})"

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import t5
 import gin
 from mesh_tensorflow.transformer import utils
-from dataset import build_uq
+from dataset import build
 
 
 def acc(mixture: str, score_file: str, split: str='dev'):
@@ -73,10 +73,11 @@ def acc(mixture: str, score_file: str, split: str='dev'):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='calibration computation')
   parser.add_argument('--mix', type=str, help='mixture', default='uq_sub_test_mix')
+  parser.add_argument('--split', type=str, help='split', default='dev')
   parser.add_argument('--score', type=str, help='score file')
   args = parser.parse_args()
 
   # build tasks and mixtures
-  build_uq(neg_method='weight')
+  build(neg_method='weight')
 
-  acc(args.mix, args.score)
+  acc(args.mix, args.score, args.split)

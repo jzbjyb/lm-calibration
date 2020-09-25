@@ -9,7 +9,7 @@ from t5.models.mesh_transformer_main import console_entry_point
 from mesh_tensorflow.transformer import utils
 import gin
 from absl import logging
-from dataset import build_uq
+from dataset import build
 
 
 if __name__ == '__main__':
@@ -18,10 +18,10 @@ if __name__ == '__main__':
   utils.parse_gin_defaults_and_flags()
 
   # build tasks and mixtures
-  build_uq()
+  build()
 
   # test
-  task = t5.data.TaskRegistry.get('uq_arc_easy')
+  task = t5.data.TaskRegistry.get('test')
   ds = task.get_dataset(split='dev', sequence_length={'inputs': 128, 'targets': 32})
   print('======= A few preprocessed dev examples =======')
   for ex in tfds.as_numpy(ds.take(5)):
