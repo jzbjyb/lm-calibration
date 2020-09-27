@@ -596,7 +596,7 @@ class Task(DatasetProviderBase):
         expected_output_type=tf.int64,
         expected_output_rank=1,
         error_label="token preprocessing",
-        ensure_no_eos=True)
+        ensure_no_eos=False)  # TODO: debug
     # Trim and append EOS=1 token to model features.
     def _trim_and_append_eos(feat, v):
       if feat not in self.output_features:

@@ -21,8 +21,8 @@ if __name__ == '__main__':
   build()
 
   # test
-  task = t5.data.TaskRegistry.get('test')
-  ds = task.get_dataset(split='dev', sequence_length={'inputs': 128, 'targets': 32})
+  task = t5.data.TaskRegistry.get('uq_arc_hard_ol')
+  ds = task.get_dataset(split='dev', sequence_length={'inputs': 128, 'targets': 128}, shuffle=False)
   print('======= A few preprocessed dev examples =======')
   for ex in tfds.as_numpy(ds.take(5)):
     print(ex)

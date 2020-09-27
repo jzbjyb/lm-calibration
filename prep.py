@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 import os
 import csv
 from operator import itemgetter
@@ -8,8 +8,9 @@ import numpy as np
 from scipy.special import softmax
 import matplotlib.pyplot as plt
 from dataset.utils import IND2CHAR, CHAR2IND
-from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, DOMAINS, one2multi
-from dataset.test import one2multi
+from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_OL, DOMAINS, MULTI_CHOICE
+from dataset.unifiedqa import one2multi as one2multi_uq
+from dataset.test import one2multi as one2multi_test
 
 SEED = 2021
 random.seed(SEED)
@@ -149,12 +150,13 @@ def acc(csv_file, answer_file, logit_file):
   plt.close()
 
 
-def convert_uq(domain: str, splits: List[str], format: str='tsv'):
-  for split in splits:
-    in_fname = os.path.join(UNIFIEDQA_GS, domain, split + '.' + format)
-    out_fname = os.path.join(UNIFIEDQA_PREP_GS, domain, split + '.' + format)
-    print('{} -> {}'.format(in_fname, out_fname))
-    one2multi(in_fname, out_fname)
+def convert_uq(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', **kwargs):
+  for domain, splits in domains:
+    for split in splits:
+      in_fname = os.path.join(from_bk, domain, split + '.' + format)
+      out_fname = os.path.join(to_bk, domain, split + '.' + format)
+      print('{} -> {}'.format(in_fname, out_fname))
+      one2multi_uq(in_fname, out_fname, **kwargs)
 
 
 if __name__ == '__main__':
@@ -164,7 +166,8 @@ if __name__ == '__main__':
 
   #acc('test.prep/test.csv', 'test.prep.unifiedqa_input/test_target.txt', 'output/answer/unifiedqa_test_score.txt')
 
-  #for domain, splits in DOMAINS:
-  #  convert_uq(domain, splits)
+  #convert_uq(UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, DOMAINS)
 
-  one2multi()
+  convert_uq(UNIFIEDQA_GS, UNIFIEDQA_PREP_GS_OL, DOMAINS, oneline=True, num_sep=len(MULTI_CHOICE))
+
+  #one2multi_test()

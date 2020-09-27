@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
 neg_method=weight
-
 tpu_name=jzb
 gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
 #model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
 model_dir=gs://neulab-qa/unifiedqa/models/3B
 step=1100500
-tpb=32768
+model_parallelism=8
+tpb=262144
 
-mix=uq_arc_hard_mix
+mix=uq_arc_hard_ol_mix
 split=dev
 
 ./run_test.py \
@@ -23,6 +23,7 @@ split=dev
     --gin_file="greedy_decode.gin" \
     --gin_param="MIXTURE_NAME = '${mix}'" \
     --gin_param="run.dataset_split = '${split}'" \
+    --gin_param="utils.tpu_mesh_shape.model_parallelism = ${model_parallelism}" \
     --gin_param="utils.tpu_mesh_shape.tpu_topology = '${TPU_SIZE}'" \
     --gin_param="utils.run.eval_checkpoint_step = ${step}" \
     --gin_param="mesh_eval_dataset_fn.num_eval_examples = None" \

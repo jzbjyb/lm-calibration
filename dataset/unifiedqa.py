@@ -3,10 +3,12 @@ import functools
 import tensorflow as tf
 import t5
 import gin
-from .utils import trivia_preprocessor, qa_dataset_fn
+from .utils import trivia_preprocessor, qa_dataset_fn, qa_dataset_fn_oneline, concat_preprocessor
+
 
 UNIFIEDQA_GS = 'gs://unifiedqa/data'
 UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
+UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
                  ('openbookqa', ('train', 'dev', 'test')),
@@ -28,6 +30,8 @@ SUB_TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
                     ('mctest_corrected_the_separator', ('train', 'dev'))]
 DOMAINS = TRAIN_DOMAINS + TEST_DOMAINS
 
+MULTI_CHOICE = ['(A)', '(B)', '(C)', '(D)', '(E)', '(F)', '(G)', '(H)']
+
 
 def compose_qa_pair(question: str,
                     answer: str,
@@ -47,8 +51,7 @@ def compose_qa_pair(question: str,
     raise NotImplementedError
 
 
-def one2multi(in_fname: str, out_fname: str):
-  mc = ['(A)', '(B)', '(C)', '(D)', '(E)', '(F)', '(G)', '(H)']
+def one2multi(in_fname: str, out_fname: str, oneline: bool=False, num_sep: int=10):
   with tf.io.gfile.GFile(in_fname, 'r') as fin, tf.io.gfile.GFile(out_fname, 'w') as fout:
     for line_ind, line in enumerate(fin):
       question, answer = line.strip().split('\t')
@@ -56,13 +59,14 @@ def one2multi(in_fname: str, out_fname: str):
       answer = answer.strip()
 
       cc = 0
-      remain_answer = question.split(mc[0], 1)  # TODO: assume ABCD is not in question-answer pairs.
+      remain_answer = question.split(MULTI_CHOICE[0], 1)  # TODO: assume ABCD is not in question-answer pairs.
       remain_answer = None if len(remain_answer) < 2 else remain_answer[1]
-      for i in range(len(mc)):
+      aipairs = []
+      for i in range(len(MULTI_CHOICE)):
         if remain_answer is None:
           break
-        if i < len(mc) - 1:
-          _answer = remain_answer.split(mc[i + 1], 1)
+        if i < len(MULTI_CHOICE) - 1:
+          _answer = remain_answer.split(MULTI_CHOICE[i + 1], 1)
         else:
           _answer = [remain_answer]  # remove the context
         remain_answer = None
@@ -71,16 +75,26 @@ def one2multi(in_fname: str, out_fname: str):
         else:
           _answer = _answer[0].split('\\n', 1)[0]
         _answer = _answer.strip()
-        #print('"{}" "{}"'.format(_answer, answer))
-        cc += int(_answer == answer)
         q, a, b = compose_qa_pair(question, _answer, is_neg=_answer != answer, neg_method='bool')
-        fout.write('{}\t{}\t{}\t{}\n'.format(line_ind, q, a, b))
+        cc += int(b == 'True')
+        if b == 'True':
+          aipairs.insert(0, (a, i))
+        else:
+          aipairs.append((a, i))
+        if not oneline:
+          fout.write('{}\t{}\t{}\t{}\n'.format(line_ind, q, a, b))
       assert cc >= 1, '#correct answer is {}, should >= 1, question is "{}", answer is "{}"'.format(cc, question, answer)
+      if oneline:
+        fout.write('{}\t{}\t{}\n'.format(
+          line_ind,
+          question,
+          '\t'.join('{}\t{}'.format(a, c) for a, c in (aipairs + [('', '')] * (num_sep - len(aipairs))))))
 
 
 @gin.configurable
 def build_uq(neg_method: str='indicator'):
   for domain, splits in DOMAINS:
+    # multi-line tasks
     t5.data.TaskRegistry.add(
       'uq_{}'.format(domain),
       dataset_fn=functools.partial(
@@ -89,9 +103,21 @@ def build_uq(neg_method: str='indicator'):
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
-
     t5.data.MixtureRegistry.remove('uq_{}_mix'.format(domain))
     t5.data.MixtureRegistry.add('uq_{}_mix'.format(domain), ['uq_{}'.format(domain)], default_rate=1.0)
+
+    # single-line tasks
+    t5.data.TaskRegistry.add(
+      'uq_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_PREP_GS_OL, domain=domain, num_sep=len(MULTI_CHOICE)),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=len(MULTI_CHOICE))],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.MixtureRegistry.remove('uq_{}_ol_mix'.format(domain))
+    t5.data.MixtureRegistry.add('uq_{}_ol_mix'.format(domain), ['uq_{}_ol'.format(domain)], default_rate=1.0)
 
   t5.data.MixtureRegistry.remove('uq_train_mix')
   t5.data.MixtureRegistry.add('uq_train_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
@@ -103,3 +129,6 @@ def build_uq(neg_method: str='indicator'):
   t5.data.MixtureRegistry.add('uq_all_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS + TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_sub_all_mix')
   t5.data.MixtureRegistry.add('uq_sub_all_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS + SUB_TEST_DOMAINS], default_rate=1.0)
+
+  t5.data.MixtureRegistry.remove('uq_train_ol_mix')
+  t5.data.MixtureRegistry.add('uq_train_ol_mix', ['uq_{}_ol'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
