@@ -45,6 +45,7 @@ from __future__ import print_function
 
 import json
 import math
+import sys
 
 import gin
 import mesh_tensorflow as mtf
@@ -766,7 +767,7 @@ class Unitransformer(object):
     """
     # Use a custom loss function if one is injected.
     if self._loss_fn:
-      return self._loss_fn(self, context, logits, targets, output_vocab_dim)
+      return self._loss_fn(self, context, logits, targets, weights, output_vocab_dim)
     off_value = self.label_smoothing / output_vocab_dim.size
     on_value = 1.0 - self.label_smoothing + off_value
     soft_targets = mtf.one_hot(
@@ -788,10 +789,11 @@ class Unitransformer(object):
     weight_loss = loss * _weights
     if weights is not None:
       weight_loss = weight_loss * mtf.to_bfloat16(weights)
-    return (mtf.reduce_sum(weight_loss) /
-            self.loss_denominator(targets, context.num_microbatches))
+    reduce_loss = (mtf.reduce_sum(weight_loss) /
+                   self.loss_denominator(targets, context.num_microbatches))
+    return reduce_loss, weight_loss
 
-  def _call_internal(self, context, inputs, targets=None, weights=None):
+  def _call_internal(self, context, inputs, targets=None, weights=None, reduce=True):
     """Compute logits based on inputs (all positions in parallel).
 
     Also updates context if applicable.
@@ -872,12 +874,15 @@ class Unitransformer(object):
           reduced_dims=x.shape.dims[-1:],
           name="logits")
     if targets is not None and context.losses is not None:
-      context.losses.append(
-          self._compute_loss(context, logits, targets, weights, self.output_vocab_dim))
+      loss, all_loss = self._compute_loss(context, logits, targets, weights, self.output_vocab_dim)
+      context.losses.append(loss)
     if self.ensemble_dim:
       logits = reduce_ensemble_logits(
           logits, self.ensemble_dim, self.output_vocab_dim)
-    return logits
+    if reduce:
+      return logits
+    else:
+      return all_loss
 
   def loss_denominator(self, targets, num_microbatches):
     """Denominator applied to losses.
@@ -918,7 +923,8 @@ class Unitransformer(object):
                   layer_outputs=None,
                   encoder_layer_outputs=None,
                   num_microbatches=1,
-                  weights=None):
+                  weights=None,
+                  reduce_loss=True):
     """Compute logits based on inputs (all positions in parallel).
 
     This is called during training and evaluation.
@@ -1005,7 +1011,7 @@ class Unitransformer(object):
         encoder_inputs=encoder_inputs,
         num_microbatches=num_microbatches)
     with tf.variable_scope(self.name):
-      logits = self._call_internal(context, inputs, targets, weights)
+      logits = self._call_internal(context, inputs, targets, weights, reduce=reduce_loss)
     if compute_loss:
       loss = mtf.add_n(context.losses)
     else:
@@ -1363,7 +1369,7 @@ def shift_targets(targets, bos_id=0, eos_id=1):
 class Bitransformer(object):
   """A Transformer sequence-to-sequence model with two layer stacks."""
 
-  def __init__(self, encoder, decoder, shared_embedding=True):
+  def __init__(self, encoder, decoder, shared_embedding=True, num_sep: int=1):  # TODO: debug
     """Create a Bitransformer.
 
     Args:
@@ -1374,6 +1380,7 @@ class Bitransformer(object):
     self.encoder = encoder
     self.decoder = decoder
     self.shared_embedding = shared_embedding
+    self.num_sep = num_sep
 
   @property
   def output_vocab_dim(self):
@@ -1492,22 +1499,59 @@ class Bitransformer(object):
       encoder_sequence_id = mtf.layers.rename_length_to_memory_length(
           encoder_sequence_id)
 
-    logits, loss = self.decoder.call_simple(
-        shift_targets(targets),
-        targets,
-        compute_loss,
-        mode=mode,
-        variable_dtype=variable_dtype,
-        sequence_id=decoder_sequence_id,
-        subsequence_id=decoder_subsequence_id,
-        encoder_output=encoder_output,
-        encoder_sequence_id=encoder_sequence_id,
-        encoder_inputs=mtf.layers.rename_length_to_memory_length(inputs),
-        position=decoder_position,
-        shared_params=shared_params,
-        encoder_layer_outputs=encoder_layer_outputs,
-        num_microbatches=num_microbatches,
-        weights=weights)
+    fl = targets.shape.to_integer_list[-1]
+    assert fl % self.num_sep == 0, 'not dividable by num_step'
+    pl = fl // self.num_sep
+    decoder_loss_li = []
+    decoder_logits_li = []
+    mask_li = []
+
+    for sep in range(self.num_sep):
+      _targets = mtf.slice(targets, sep * pl, pl, 'length')
+      _ds = decoder_sequence_id
+      _ds = mtf.slice(_ds, sep * pl, pl, 'length') if _ds is not None else None
+      _dss = decoder_subsequence_id
+      _dss = mtf.slice(_dss, sep * pl, pl, 'length') if _dss is not None else None
+      _dp = decoder_position
+      _dp = mtf.slice(_dp, sep * pl, pl, 'length') if _dp is not None else None
+
+      mask = mtf.layers.weights_nonzero(_targets, dtype=variable_dtype.activation_dtype)
+      mask = mtf.layers.weights_nonzero(mtf.reduce_sum(mask, reduced_dim=mask.shape[-1]) - 1)
+      mask_li.append(mask)
+
+      logits, loss = self.decoder.call_simple(
+          shift_targets(_targets),
+          _targets,
+          compute_loss,
+          mode=mode,
+          variable_dtype=variable_dtype,
+          sequence_id=_ds,
+          subsequence_id=_dss,
+          encoder_output=encoder_output,
+          encoder_sequence_id=encoder_sequence_id,
+          encoder_inputs=mtf.layers.rename_length_to_memory_length(inputs),
+          position=_dp,
+          shared_params=shared_params,
+          encoder_layer_outputs=encoder_layer_outputs,
+          num_microbatches=num_microbatches,
+          weights=weights,
+          reduce_loss=self.num_sep <= 1)
+      decoder_loss_li.append(loss)
+      decoder_logits_li.append(logits)
+
+    if len(decoder_loss_li) == 0:
+      raise Exception('decoder not executed')
+    elif len(decoder_loss_li) == 1:
+      loss = decoder_loss_li[0]
+    else:
+      alp = [mtf.reduce_mean(lp, reduced_dim=lp.shape[-1]) for lp in decoder_logits_li]
+      mask = mtf.to_bfloat16(mtf.log(mtf.stack(mask_li, 'stack', -1)))
+      tf.print('*' * 10, mask, output_stream=sys.stderr)
+      alp_stack = mtf.stack(alp, 'stack', -1) + mask
+      log_z = mtf.reduce_logsumexp(alp_stack, reduced_dim=alp_stack.shape[-1])
+      log_softmax = alp[0] - log_z
+      loss = (mtf.reduce_sum(mtf.negative(log_softmax)) / self.decoder.loss_denominator(alp[0], num_microbatches))
+
     if loss is not None and encoder_loss is not None:
       loss += encoder_loss
     return logits, loss

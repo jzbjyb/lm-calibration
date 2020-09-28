@@ -3,6 +3,8 @@ import os
 import functools
 import tensorflow as tf
 import gin
+import mesh_tensorflow as mtf
+from mesh_tensorflow.transformer.transformer import delimited_lm_inputs_mask
 
 
 IND2CHAR = dict(zip(range(4), 'ABCD'))
@@ -104,8 +106,7 @@ def concat_preprocessor(ds,
     return x
 
   def _concat(x, max_len):
-    print(max_len)
-    sub_len = tf.reshape(tf.where(x == sep_ind) + 1, [-1])
+    sub_len = tf.reshape(tf.where(tf.equal(x, sep_ind)) + 1, [-1])
     sub_len = sub_len - tf.concat([[0], sub_len[:-1]], axis=0)
     xs = tf.split(x, sub_len, num=num_sep)
     # skip the last one because it will be handled by t5 code
@@ -115,3 +116,53 @@ def concat_preprocessor(ds,
 
   assert sequence_length[feature_key] % num_sep == 0, 'seq len should be divided by num_sep'
   return ds.map(lambda ex: {k: _concat(ex[k], sequence_length[k] // num_sep) if k == feature_key else ex[k] for k in ex})
+
+
+@gin.configurable
+def mc_softmax_loss_fn(self, context, logits, targets, weights, output_vocab_dim):
+  off_value = self.label_smoothing / output_vocab_dim.size
+  on_value = 1.0 - self.label_smoothing + off_value
+  soft_targets = mtf.one_hot(
+    targets,
+    output_vocab_dim,
+    dtype=context.activation_dtype,
+    on_value=on_value,
+    off_value=off_value)
+
+  z_loss = self.z_loss if context.train else 0.0
+
+  if soft_targets.dtype.is_integer:
+    # hard targets
+    if (set(soft_targets.shape.dims) != set(logits.shape.dims).difference([output_vocab_dim])):
+      raise ValueError(
+          "softmax_cross_entropy_with_logits with hard targets "
+          "dims in targets=%s should be dims in logits=%s other than "
+          "vocab_dim=%s" % (soft_targets, logits, output_vocab_dim))
+    soft_targets = mtf.one_hot(soft_targets, output_vocab_dim, dtype=logits.dtype)
+  elif set(soft_targets.shape.dims) != set(logits.shape.dims):
+    raise ValueError(
+        "softmax_cross_entropy_with_logits with soft targets "
+        "dims in targets=%s should be dims in logits=%s"% (soft_targets, logits))
+  if output_vocab_dim not in logits.shape.dims:
+    raise ValueError("vocab_dim must be in logits.shape.dims")
+
+  print(logits.shape, soft_targets.shape, '*' * 1000)
+
+  log_z = mtf.reduce_logsumexp(logits, output_vocab_dim)
+  log_softmax = logits - log_z
+  loss = mtf.negative(
+      mtf.reduce_sum(log_softmax * soft_targets, reduced_dim=output_vocab_dim))
+  if z_loss != 0:
+    loss += z_loss * mtf.square(log_z)
+
+
+  _weights = mtf.layers.weights_nonzero(
+    targets, dtype=context.activation_dtype)
+  if self.loss_on_targets_only:
+    _weights *= mtf.cast(mtf.logical_not(delimited_lm_inputs_mask(targets)),
+                         dtype=context.activation_dtype)
+  weight_loss = loss * _weights
+  if weights is not None:
+    weight_loss = weight_loss * mtf.to_bfloat16(weights)
+  return (mtf.reduce_sum(weight_loss) /
+          self.loss_denominator(targets, context.num_microbatches))
