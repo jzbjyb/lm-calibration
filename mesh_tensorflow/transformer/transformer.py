@@ -1516,7 +1516,6 @@ class Bitransformer(object):
       _dp = mtf.slice(_dp, sep * pl, pl, 'length') if _dp is not None else None
 
       mask = mtf.layers.weights_nonzero(_targets, dtype=variable_dtype.activation_dtype)
-      mask = mtf.layers.weights_nonzero(mtf.reduce_sum(mask, reduced_dim=mask.shape[-1]) - 1)
       mask_li.append(mask)
 
       logits, loss = self.decoder.call_simple(
@@ -1544,13 +1543,15 @@ class Bitransformer(object):
     elif len(decoder_loss_li) == 1:
       loss = decoder_loss_li[0]
     else:
-      alp = [mtf.reduce_mean(lp, reduced_dim=lp.shape[-1]) for lp in decoder_logits_li]
-      mask = mtf.to_bfloat16(mtf.log(mtf.stack(mask_li, 'stack', -1)))
-      tf.print('*' * 10, mask, output_stream=sys.stderr)
+      alp = [mtf.reduce_sum(lp * mask, reduced_dim=lp.shape[-1]) / mtf.reduce_sum(mask, reduced_dim=mask.shape[-1])
+             for lp, mask in zip(decoder_logits_li, mask_li)]
+      mask = mtf.to_bfloat16(mtf.log(
+        mtf.stack([mtf.layers.weights_nonzero(mtf.reduce_sum(mask, reduced_dim=mask.shape[-1]) - 1)
+                   for mask in mask_li], 'stack', -1)))
       alp_stack = mtf.stack(alp, 'stack', -1) + mask
       log_z = mtf.reduce_logsumexp(alp_stack, reduced_dim=alp_stack.shape[-1])
       log_softmax = alp[0] - log_z
-      loss = (mtf.reduce_sum(mtf.negative(log_softmax)) / self.decoder.loss_denominator(alp[0], num_microbatches))
+      loss = 10 * (mtf.reduce_sum(mtf.negative(log_softmax)) / self.decoder.loss_denominator(alp[0], num_microbatches))
 
     if loss is not None and encoder_loss is not None:
       loss += encoder_loss

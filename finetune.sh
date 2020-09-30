@@ -4,7 +4,7 @@ neg_method=$1
 output=$2
 train_steps=$3  # 1105000
 
-tpu_name=jzb
+tpu_name=default-dgdw2	# default-dgdw2
 mix=uq_train_ol_mix
 gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
 #from_model_dir=gs://neulab-qa/t5-data/pretrained_models/small/model.ckpt-1000000

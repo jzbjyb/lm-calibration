@@ -7,7 +7,7 @@ step=$4  # 1100500
 mix=$5
 split=$6
 
-tpu_name=default-dgdw2  # default-dgdw2
+tpu_name=jzb  # default-dgdw2
 gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
 model_parallelism=8
 tpb=262144  # 32768
