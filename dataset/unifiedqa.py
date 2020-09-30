@@ -9,6 +9,7 @@ from .utils import trivia_preprocessor, qa_dataset_fn, qa_dataset_fn_oneline, co
 UNIFIEDQA_GS = 'gs://unifiedqa/data'
 UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
 UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
+UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt'
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
                  ('openbookqa', ('train', 'dev', 'test')),
@@ -106,6 +107,16 @@ def build_uq(neg_method: str='indicator'):
     t5.data.MixtureRegistry.remove('uq_{}_mix'.format(domain))
     t5.data.MixtureRegistry.add('uq_{}_mix'.format(domain), ['uq_{}'.format(domain)], default_rate=1.0)
 
+    # multi-line bt tasks
+    t5.data.TaskRegistry.add(
+      'uq_{}_bt'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn, bucket=UNIFIEDQA_PREP_GS_BT, domain=domain, use_neg=True, neg_method=neg_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+
     # single-line tasks
     t5.data.TaskRegistry.add(
       'uq_{}_ol'.format(domain),
@@ -129,6 +140,9 @@ def build_uq(neg_method: str='indicator'):
   t5.data.MixtureRegistry.add('uq_all_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS + TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_sub_all_mix')
   t5.data.MixtureRegistry.add('uq_sub_all_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS + SUB_TEST_DOMAINS], default_rate=1.0)
+
+  t5.data.MixtureRegistry.remove('uq_sub_test_bt_mix')
+  t5.data.MixtureRegistry.add('uq_sub_test_bt_mix', ['uq_{}_bt'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)
 
   t5.data.MixtureRegistry.remove('uq_train_ol_mix')
   t5.data.MixtureRegistry.add('uq_train_ol_mix', ['uq_{}_ol'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
