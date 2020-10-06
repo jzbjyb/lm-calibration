@@ -1,5 +1,6 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import os
+from collections import defaultdict
 from tqdm import tqdm
 import torch
 
@@ -30,7 +31,9 @@ def qa_dataset_backtranslate(from_file: str,
                              to_file: str,
                              trans1=None,
                              trans2=None,
-                             bt_count: int=1):
+                             bt_count: int=1,
+                             out_count: int=1):
+  assert bt_count >= out_count
   os.makedirs(os.path.dirname(to_file), exist_ok=True)
   with open(from_file, 'r') as fin, open(to_file, 'w') as fout:
     ans_ind = 0
@@ -47,13 +50,34 @@ def qa_dataset_backtranslate(from_file: str,
       tok1_bin = trans1.binarize(tok1_bpe)
 
       tok2_bins = trans1.generate(tok1_bin, beam=bt_count, sampling=True, sampling_topk=20)
-      for tok2_bin in tok2_bins:
-        tok1_bins = trans2.generate(tok2_bin['tokens'].cpu(), beam=bt_count, sampling=True, sampling_topk=20)
+      tok2_bins = [tok2_bin['tokens'].cpu() for tok2_bin in tok2_bins]
+
+      bts: Dict[str, int] = defaultdict(lambda: 0)
+      tok1_binss = trans2.generate(tok2_bins, beam=bt_count, sampling=True, sampling_topk=20)
+      for tok1_bins in tok1_binss:
         for tok1_bin in tok1_bins:
           tok1_bpe = trans2.string(tok1_bin['tokens'])
           tok1 = trans2.remove_bpe(tok1_bpe)
           an = trans2.detokenize(tok1)
-          fout.write('{}\t{}\t{}\t{}\n'.format('{}-{}'.format(qid, ans_ind), question, an, correct))
+          bts[an] += 1
+
+      # remove the original sentence if possible
+      if answer in bts:
+        bts[answer] -= (bt_count * bt_count - out_count)
+        if bts[answer] <= 0:
+          del bts[answer]
+
+      bts = sorted(bts.items(), key=lambda x: -x[1])
+      c = out_count
+      ind = 0
+      while c > 0:
+        if ind >= len(bts) or bts[ind][1] <= 0:
+          ind = 0
+        assert bts[ind][1] > 0, 'back translations are exhausted'
+        fout.write('{}\t{}\t{}\t{}\n'.format('{}-{}'.format(qid, ans_ind), question, bts[ind][0], correct))
+        bts[ind] = (bts[ind][0], bts[ind][1] - 1)
+        ind += 1
+        c -= 1
 
       prev_qid = qid
 
