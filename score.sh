@@ -12,6 +12,8 @@ gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
 model_parallelism=8
 tpb=262144  # 32768
 
+mkdir -p $(dirname "${output}")
+
 ./run_test.py \
     --tpu="${tpu_name}"  \
     --gcp_project="${PROJECT}" \
