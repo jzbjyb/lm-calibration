@@ -116,6 +116,8 @@ def build_uq(neg_method: str='indicator'):
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.MixtureRegistry.remove('uq_{}_bt_mix'.format(domain))
+    t5.data.MixtureRegistry.add('uq_{}_bt_mix'.format(domain), ['uq_{}_bt'.format(domain)], default_rate=1.0)
 
     # single-line tasks
     t5.data.TaskRegistry.add(

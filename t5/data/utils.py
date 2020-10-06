@@ -988,6 +988,10 @@ class Mixture(DatasetProviderBase):
     self._check_same_vocabularies()
     return self._tasks[0].get_vocabulary(feature_name=feature_name)
 
+  def get_dataset_in_order(self, sequence_length, split, use_cached=False, shuffle=True):
+    for task in self.tasks:
+      yield from task.get_dataset(sequence_length, split=split, use_cached=use_cached, shuffle=shuffle)
+
   def get_dataset(
       self,
       sequence_length,

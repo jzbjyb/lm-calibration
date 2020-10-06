@@ -4,17 +4,17 @@ import numpy as np
 from scipy.special import softmax
 import matplotlib.pyplot as plt
 import t5
-import gin
-from mesh_tensorflow.transformer import utils
 from dataset import build
 
 
 def acc(mixture: str, score_file: str, split: str='dev'):
+  real_acc_li = []
   acc_li = []
   conf_li = []
 
   mix = t5.data.MixtureRegistry.get(mixture)
-  ds = mix.get_dataset(split=split, sequence_length={'inputs': 512, 'targets': 512}, shuffle=False, use_filter=False)
+  ds = mix.get_dataset_in_order(
+    split=split, sequence_length={'inputs': 512, 'targets': 512}, shuffle=False)
 
   with open(score_file, 'r') as sfin:
     scores = []
@@ -24,19 +24,29 @@ def acc(mixture: str, score_file: str, split: str='dev'):
       l = sfin.readline()
       ind = ex['inputs_plaintext'].numpy().decode()
       if prev_ind is not None and ind != prev_ind:
+        scores = softmax(scores)
+        for score, weight in zip(scores, weights):
+          acc_li.append(weight == 1)
+          conf_li.append(score)
         choice = np.argmax(scores)
-        gold = np.argmax(weights)
-        acc = choice == gold
-        conf = softmax(scores)[choice]
+        real_acc_li.append(int(weights[choice] == 1))
+        '''
+        choice = np.argmax(scores)
+        gold = [wi for wi, w in enumerate(weights) if w == 1]
+        acc = int(choice in gold)
+        conf = np.sum(softmax(scores)[choice])
+        #conf = min(conf, 1.0)
         acc_li.append(acc)
         conf_li.append(conf)
+        '''
         scores = []
         weights = []
       scores.append(float(l.strip()))
       weights.append(float(ex['weights'].numpy()))
       prev_ind = ind
 
-  print('acc', np.mean(acc_li))
+  real_acc = np.mean(real_acc_li)
+  print('acc', real_acc)
 
   num_bins = 20
   margin = 1 / num_bins
@@ -58,7 +68,7 @@ def acc(mixture: str, score_file: str, split: str='dev'):
   ece /= total
 
   plt.bar(xind, [np.mean(list(map(itemgetter(1), bin))) for bin in bins], margin)
-  plt.title('acc {:.3f}, ece {:.3f}'.format(np.mean(acc_li), ece))
+  plt.title('acc {:.3f}, ece {:.3f}'.format(real_acc, ece))
   plt.ylabel('accuracy')
   plt.xlabel('confidence')
   plt.ylim(0.0, 1.0)
