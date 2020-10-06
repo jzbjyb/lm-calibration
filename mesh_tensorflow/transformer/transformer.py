@@ -791,7 +791,7 @@ class Unitransformer(object):
       weight_loss = weight_loss * mtf.to_bfloat16(weights)
     reduce_loss = (mtf.reduce_sum(weight_loss) /
                    self.loss_denominator(targets, context.num_microbatches))
-    return reduce_loss, weight_loss
+    return reduce_loss, -weight_loss
 
   def _call_internal(self, context, inputs, targets=None, weights=None, reduce=True):
     """Compute logits based on inputs (all positions in parallel).
