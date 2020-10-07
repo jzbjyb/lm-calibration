@@ -495,9 +495,14 @@ def tpu_estimator_model_fn(model_type,
             transformer.delimited_lm_inputs_mask(targets)), cross_entropy.dtype)
       scores = -mtf.reduce_sum(cross_entropy, reduced_dim=length_dim)
       scores = mtf.anonymize(scores)
+      lps = -cross_entropy
+      lps = mtf.anonymize(lps)
+      tokens = mtf.anonymize(targets)
       lowering = mtf.Lowering(graph, {mesh: mesh_impl}, autostack=autostack)
       predictions = {
-          "scores": lowering.export_to_tf_tensor(scores)
+          "scores": lowering.export_to_tf_tensor(scores),
+          "log_probs": lowering.export_to_tf_tensor(lps),
+          "tokens": lowering.export_to_tf_tensor(tokens),
       }
     elif mode == tf.estimator.ModeKeys.PREDICT:
       inputs = mtf_features["inputs"]
@@ -1190,6 +1195,10 @@ def clean_decodes(ids, eos_id=1, pad_id=0, length_axis=-1):
   return tf.where_v2(valid_ids, ids, pad_id)
 
 
+def format_tensor(tensor, foramt_str='%f'):
+  return ','.join([(foramt_str % f) for f in tensor])
+
+
 def _score_with_estimator(estimator, input_fn, eval_checkpoint_step, model_dir,
                           scores_filename, num_examples=None):
   """For each example returned by input_fn, compute log likelihood.
@@ -1210,11 +1219,12 @@ def _score_with_estimator(estimator, input_fn, eval_checkpoint_step, model_dir,
   checkpoint_path, = get_checkpoint_iterator(eval_checkpoint_step, model_dir)
 
   result_iter = estimator.predict(input_fn, checkpoint_path=checkpoint_path)
-  scores = [m["scores"] for m in result_iter]
+  scores = [(m["scores"], m["tokens"], m["log_probs"]) for m in result_iter]
   # Remove any padding examples
   scores = scores[:num_examples]
   if scores_filename is not None:
-    write_lines_to_file(["%f" % f for f in scores], scores_filename)
+    write_lines_to_file(["{}\t{}\t{}".format(f, format_tensor(tk, '%d'), format_tensor(lp))
+                         for f, tk, lp in scores], scores_filename)
   return scores
 
 

@@ -9,7 +9,7 @@ from .utils import trivia_preprocessor, qa_dataset_fn, qa_dataset_fn_oneline, co
 UNIFIEDQA_GS = 'gs://unifiedqa/data'
 UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
 UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
-UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt'
+UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt2'
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
                  ('openbookqa', ('train', 'dev', 'test')),

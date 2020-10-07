@@ -21,7 +21,7 @@ def acc(mixture: str, score_file: str, split: str='dev', num_bt: int=1):
     weights = []
     prev_ind = None
     for i, ex in enumerate(ds):
-      l = sfin.readline()
+      l = sfin.readline().strip().split('\t', 1)[0]
       ind = ex['inputs_plaintext'].numpy().decode()
       if prev_ind is not None and ind != prev_ind:
         scores = softmax(scores)
@@ -47,7 +47,7 @@ def acc(mixture: str, score_file: str, split: str='dev', num_bt: int=1):
         '''
         scores = []
         weights = []
-      scores.append(float(l.strip()))
+      scores.append(float(l))
       weights.append(float(ex['weights'].numpy()))
       prev_ind = ind
 

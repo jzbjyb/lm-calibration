@@ -100,4 +100,4 @@ def bt(from_dir, to_dir, domains: List[Tuple[str, List[str]]], format: str='tsv'
       break
 
 
-bt('data/unifiedqa', 'data/unifiedqa_bt', SUB_TEST_DOMAINS, bt_count=2)
+bt('data/unifiedqa', 'data/unifiedqa_bt', SUB_TEST_DOMAINS, bt_count=4, out_count=4)
