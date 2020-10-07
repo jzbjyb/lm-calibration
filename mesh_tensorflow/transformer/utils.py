@@ -497,12 +497,14 @@ def tpu_estimator_model_fn(model_type,
       scores = mtf.anonymize(scores)
       lps = -cross_entropy
       lps = mtf.anonymize(lps)
-      tokens = mtf.anonymize(targets)
+      inp_tokens = mtf.anonymize(inputs)
+      tgt_tokens = mtf.anonymize(targets)
       lowering = mtf.Lowering(graph, {mesh: mesh_impl}, autostack=autostack)
       predictions = {
           "scores": lowering.export_to_tf_tensor(scores),
           "log_probs": lowering.export_to_tf_tensor(lps),
-          "tokens": lowering.export_to_tf_tensor(tokens),
+          "inputs": lowering.export_to_tf_tensor(inp_tokens),
+          "targets": lowering.export_to_tf_tensor(tgt_tokens),
       }
     elif mode == tf.estimator.ModeKeys.PREDICT:
       inputs = mtf_features["inputs"]
@@ -1219,12 +1221,13 @@ def _score_with_estimator(estimator, input_fn, eval_checkpoint_step, model_dir,
   checkpoint_path, = get_checkpoint_iterator(eval_checkpoint_step, model_dir)
 
   result_iter = estimator.predict(input_fn, checkpoint_path=checkpoint_path)
-  scores = [(m["scores"], m["tokens"], m["log_probs"]) for m in result_iter]
+  scores = [(m["scores"], m["inputs"], m["targets"], m["log_probs"]) for m in result_iter]
   # Remove any padding examples
   scores = scores[:num_examples]
   if scores_filename is not None:
-    write_lines_to_file(["{}\t{}\t{}".format(f, format_tensor(tk, '%d'), format_tensor(lp))
-                         for f, tk, lp in scores], scores_filename)
+    write_lines_to_file(["{}\t{}\t{}\t{}".format(
+      f, format_tensor(inp, '%d'), format_tensor(tgt, '%d'), format_tensor(lp))
+                         for f, inp, tgt, lp in scores], scores_filename)
   return scores
 
 
