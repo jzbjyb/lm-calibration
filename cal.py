@@ -7,7 +7,7 @@ import t5
 from dataset import build
 
 
-def acc(mixture: str, score_file: str, split: str='dev', num_bt: int=1):
+def acc(mixture: str, score_file: str, split: str='dev', num_bt: int=1, temp: float=1.0):
   real_acc_li = []
   acc_li = []
   conf_li = []
@@ -24,7 +24,7 @@ def acc(mixture: str, score_file: str, split: str='dev', num_bt: int=1):
       l = sfin.readline().strip().split('\t', 1)[0]
       ind = ex['inputs_plaintext'].numpy().decode()
       if prev_ind is not None and ind != prev_ind:
-        scores = softmax(scores)
+        scores = softmax(np.array(scores) / temp)
         assert len(scores) == len(weights) and len(scores) % num_bt == 0, 'wrong correspondence'
         # use sum of log prob
         _scores = [np.sum(scores[k * num_bt:k * num_bt + num_bt]) for k in range(len(scores) // num_bt)]
@@ -36,15 +36,6 @@ def acc(mixture: str, score_file: str, split: str='dev', num_bt: int=1):
           conf_li.append(score)
         choice = np.argmax(_scores)
         real_acc_li.append(int(_weights[choice][0] == 1))
-        '''
-        choice = np.argmax(scores)
-        gold = [wi for wi, w in enumerate(weights) if w == 1]
-        acc = int(choice in gold)
-        conf = np.sum(softmax(scores)[choice])
-        #conf = min(conf, 1.0)
-        acc_li.append(acc)
-        conf_li.append(conf)
-        '''
         scores = []
         weights = []
       scores.append(float(l))
@@ -92,9 +83,10 @@ if __name__ == '__main__':
   parser.add_argument('--split', type=str, help='split', default='dev')
   parser.add_argument('--score', type=str, help='score file')
   parser.add_argument('--num_bt', type=int, help='number of translations per example', default=1)
+  parser.add_argument('--temp', type=float, help='temperature of softmax', default=1.0)
   args = parser.parse_args()
 
   # build tasks and mixtures
   build(neg_method='weight')
 
-  acc(args.mix, args.score, args.split, args.num_bt)
+  acc(args.mix, args.score, args.split, args.num_bt, args.temp)
