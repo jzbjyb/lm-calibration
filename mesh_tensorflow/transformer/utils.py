@@ -1055,9 +1055,17 @@ def decode(estimator,
       input_fn, checkpoint_path=checkpoint_path)
 
   def _maybe_detokenize(value, vocab):
-    if isinstance(value, six.binary_type):
-      return value
-    return vocab.decode([int(x) for x in value])
+    if value.ndim <= 1:
+      values = [value]
+    else:
+      values = value
+    _values = []
+    for value in values:
+      if isinstance(value, six.binary_type):
+        _values.append(value)
+      else:
+        _values.append(vocab.decode([int(x) for x in value]))
+    return _values
 
   decodes = []
   for i, result in enumerate(result_iter):
@@ -1065,7 +1073,7 @@ def decode(estimator,
         result["inputs"], inputs_vocabulary(vocabulary))
     output_string = _maybe_detokenize(
         result["outputs"], targets_vocabulary(vocabulary))
-    decodes.append(output_string)
+    decodes.extend(output_string)
     if i & (i - 1) == 0:
       # LOG every power of 2.
       tf.logging.info("decoded {}: {}".format(i, input_string))
@@ -1130,17 +1138,18 @@ def get_step_from_checkpoint_path(checkpoint_path):
 
 # TODO(noam): include more descriptive definitions
 @gin.configurable
-def decode_from_file(estimator,
+def decode_from_task(estimator,
                      vocabulary,
                      model_type,
                      batch_size,
                      sequence_length,
                      checkpoint_path=None,
-                     input_filename=gin.REQUIRED,
+                     predict_dataset_fn=None,
+                     dataset_split=None,
                      output_filename=gin.REQUIRED,
                      eos_id=1,
                      repeats=1):
-  """Decode from a text file and write to output_filename.
+  """Decode from a task/mixture and write to output_filename.
 
   Args:
     estimator: a TPUEstimator
@@ -1155,6 +1164,7 @@ def decode_from_file(estimator,
     eos_id: EOS id
     repeats: an integer, the number of times to repeat each input.
   """
+  '''
   inputs = get_inputs_from_file(input_filename)
 
   all_input_ids = encode_inputs(inputs, vocabulary, model_type, batch_size,
@@ -1167,13 +1177,35 @@ def decode_from_file(estimator,
     dataset = dataset.batch(batch_size, drop_remainder=True)
     dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
     return dataset
+  '''
+
+  datasets = predict_dataset_fn(
+    sequence_length=sequence_length,
+    vocabulary=vocabulary,
+    dataset_split=dataset_split)
+
+  def input_fn(params):
+    """Eval input function for estimator."""
+    del params
+    combined_ds = None
+    for ds in datasets:
+      ds = ds.dataset_fn()
+      ds = ds.map(_filter_features)
+      combined_ds = ds if not combined_ds else combined_ds.concatenate(ds)
+    combined_ds = combined_ds.batch(batch_size, drop_remainder=False)
+    # Pad the final batch.
+    combined_ds = transformer_dataset.trim_and_pad_dataset(
+      combined_ds, length=batch_size)
+    combined_ds = combined_ds.prefetch(tf.data.experimental.AUTOTUNE)
+    return combined_ds
 
   checkpoint_step = get_step_from_checkpoint_path(checkpoint_path)
   decodes = decode(
       estimator, input_fn, vocabulary, checkpoint_path=checkpoint_path)
+
   # Remove any padded examples
-  dataset_size = len(inputs) * repeats
-  decodes = decodes[:dataset_size]
+  #dataset_size = len(inputs) * repeats
+  #decodes = decodes[:dataset_size]
   output_filename = "{}-{}".format(output_filename, checkpoint_step)
   write_lines_to_file(decodes, output_filename)
 
@@ -1526,10 +1558,11 @@ def infer_model(estimator,
                 model_type,
                 model_dir,
                 eval_checkpoint_step,
-                input_filename=None,
+                dataset_split,
+                predict_dataset_fn=None,
                 output_filename=None,
                 checkpoint_paths=None,
-                decode_from_file_fn=decode_from_file):
+                decode_fn=decode_from_task):
   """Infer a Mesh-TF model.
 
   Args:
@@ -1547,20 +1580,21 @@ def infer_model(estimator,
     input_filename: a string, input file with examples
     output_filename: a string, output file to save decodes
     checkpoint_paths: optional list of checkpoints to run inference for
-    decode_from_file_fn: decoding function, defaults to decode_from_file
+    decode_fn: decoding function, defaults to decode_from_task
   """
   if checkpoint_paths is None:
     checkpoint_paths = get_checkpoint_iterator(eval_checkpoint_step, model_dir)
 
   for checkpoint_path in checkpoint_paths:
-    decode_from_file_fn(
+    decode_fn(
         estimator,
         vocabulary=vocabulary,
         model_type=model_type,
         batch_size=batch_size,
         sequence_length=sequence_length,
         checkpoint_path=checkpoint_path,
-        input_filename=input_filename,
+        predict_dataset_fn=predict_dataset_fn,
+        dataset_split=dataset_split,
         output_filename=output_filename)
 
 
@@ -2181,7 +2215,7 @@ def run(tpu_job_name,
                eval_checkpoint_step)
   elif mode == "infer":
     infer_model(estimator, vocabulary, sequence_length, batch_size, model_type,
-                model_dir, eval_checkpoint_step)
+                model_dir, eval_checkpoint_step, dataset_split)
   elif mode == "score_from_strings":
     score_from_strings(estimator, vocabulary, model_type, batch_size,
                        sequence_length, model_dir, eval_checkpoint_step,

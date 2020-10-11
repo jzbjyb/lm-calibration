@@ -3,13 +3,16 @@ import functools
 import tensorflow as tf
 import t5
 import gin
-from .utils import trivia_preprocessor, qa_dataset_fn, qa_dataset_fn_oneline, concat_preprocessor
+from .utils import trivia_preprocessor, qa_dataset_fn, qa_dataset_fn_oneline, \
+  qa_dataset_fn_onlycorrect, concat_preprocessor
 
 
 UNIFIEDQA_GS = 'gs://unifiedqa/data'
 UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
+UNIFIEDQA_RAW_GS = 'gs://neulab-qa/unifiedqa/data'
 UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
 UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt2'
+
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
                  ('openbookqa', ('train', 'dev', 'test')),
@@ -30,6 +33,12 @@ SUB_TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
                     ('winogrande_s', ('train', 'dev')),
                     ('mctest_corrected_the_separator', ('train', 'dev'))]
 DOMAINS = TRAIN_DOMAINS + TEST_DOMAINS
+
+EXT_DOMAINS = [('squad1_1', ('train', 'dev')),
+               ('squad2', ('train', 'dev')),
+               ('newsqa', ('train', 'dev')),
+               ('quoref', ('train', 'dev')),
+               ('ropes', ('train', 'dev'))]
 
 MULTI_CHOICE = ['(A)', '(B)', '(C)', '(D)', '(E)', '(F)', '(G)', '(H)']
 
@@ -148,3 +157,18 @@ def build_uq(neg_method: str='indicator'):
 
   t5.data.MixtureRegistry.remove('uq_train_ol_mix')
   t5.data.MixtureRegistry.add('uq_train_ol_mix', ['uq_{}_ol'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
+
+  for domain, splits in EXT_DOMAINS:
+    # single-line extractive tasks
+    t5.data.TaskRegistry.add(
+      'uq_{}_oc'.format(domain),
+      dataset_fn=functools.partial(qa_dataset_fn_onlycorrect, bucket=UNIFIEDQA_RAW_GS, domain=domain),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.MixtureRegistry.remove('uq_{}_oc_mix'.format(domain))
+    t5.data.MixtureRegistry.add('uq_{}_oc_mix'.format(domain), ['uq_{}_oc'.format(domain)], default_rate=1.0)
+
+  t5.data.MixtureRegistry.remove('uq_ext_mix')
+  t5.data.MixtureRegistry.add('uq_ext_mix', ['uq_{}_oc'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)

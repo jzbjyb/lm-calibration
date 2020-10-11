@@ -55,6 +55,26 @@ def qa_dataset_fn_oneline(split: str,
   return ds
 
 
+def qa_dataset_fn_onlycorrect(split: str,
+                              shuffle_files: bool=False,
+                              bucket: str='',
+                              domain: str=None,
+                              format: str='tsv'):
+  if domain:
+    file = os.path.join(bucket, domain, split + '.' + format)
+  else:
+    file = os.path.join(bucket, split + '.' + format)
+  ds = tf.data.TextLineDataset(file)
+  ds = ds.map(functools.partial(
+    tf.io.decode_csv, record_defaults=['', ''], field_delim='\t', use_quote_delim=False),
+    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+  def map_fn(question: str, answer: str):
+    question = tf.strings.regex_replace(question, '\\\\n', '\n')
+    return question, answer, 1.0
+  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
+  return ds
+
+
 def qa_dataset_fn(split: str,
                   shuffle_files: bool=False,
                   bucket: str='',

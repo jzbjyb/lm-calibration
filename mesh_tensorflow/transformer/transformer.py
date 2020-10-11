@@ -1334,8 +1334,10 @@ class Unitransformer(object):
         dtype=tf.float32,
         mesh_shape=self.mesh_shape,
         layout=self.layout)
-    return mtf.gather(
+    # return all
+    top1 = mtf.gather(
         beams, mtf.constant(inputs.mesh, 0, dtype=tf.int32), beam_dim)
+    return beams
 
 
 @gin.configurable
