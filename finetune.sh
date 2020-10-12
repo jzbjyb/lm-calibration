@@ -33,4 +33,5 @@ tgt_len=4096
     --gin_param="utils.run.sequence_length = {'inputs': 512, 'targets': ${tgt_len}}" \
     --gin_param="encoder/Unitransformer.z_loss = 0.0" \
     --gin_param="decoder/Unitransformer.z_loss = 0.0" \
-    --gin_param="Bitransformer.num_sep = 8"
+    --gin_param="Bitransformer.num_sep = 8" \
+    --gin_param="Bitransformer.loss_type = 'margin'"

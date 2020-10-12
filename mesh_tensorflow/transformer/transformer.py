@@ -1371,7 +1371,7 @@ def shift_targets(targets, bos_id=0, eos_id=1):
 class Bitransformer(object):
   """A Transformer sequence-to-sequence model with two layer stacks."""
 
-  def __init__(self, encoder, decoder, shared_embedding=True, num_sep: int=1):  # TODO: debug
+  def __init__(self, encoder, decoder, shared_embedding=True, num_sep: int=1, loss_type: str='softmax'):  # TODO: debug
     """Create a Bitransformer.
 
     Args:
@@ -1383,6 +1383,8 @@ class Bitransformer(object):
     self.decoder = decoder
     self.shared_embedding = shared_embedding
     self.num_sep = num_sep
+    self.loss_type = loss_type
+    self.margin = 1.0
 
   @property
   def output_vocab_dim(self):
@@ -1545,15 +1547,26 @@ class Bitransformer(object):
     elif len(decoder_loss_li) == 1:
       loss = decoder_loss_li[0]
     else:
-      alp = [mtf.reduce_sum(lp * mask, reduced_dim=lp.shape[-1]) / mtf.reduce_sum(mask, reduced_dim=mask.shape[-1])
-             for lp, mask in zip(decoder_logits_li, mask_li)]
-      mask = mtf.to_bfloat16(mtf.log(
-        mtf.stack([mtf.layers.weights_nonzero(mtf.reduce_sum(mask, reduced_dim=mask.shape[-1]) - 1)
-                   for mask in mask_li], 'stack', -1)))
-      alp_stack = mtf.stack(alp, 'stack', -1) + mask
-      log_z = mtf.reduce_logsumexp(alp_stack, reduced_dim=alp_stack.shape[-1])
-      log_softmax = alp[0] - log_z
-      loss = 10 * (mtf.reduce_sum(mtf.negative(log_softmax)) / self.decoder.loss_denominator(alp[0], num_microbatches))
+      if self.loss_type == 'softmax':
+        alp = [mtf.reduce_sum(lp * mask, reduced_dim=lp.shape[-1]) / mtf.reduce_sum(mask, reduced_dim=mask.shape[-1])
+               for lp, mask in zip(decoder_logits_li, mask_li)]
+        mask = mtf.to_bfloat16(mtf.log(
+          mtf.stack([mtf.layers.weights_nonzero(mtf.reduce_sum(mask, reduced_dim=mask.shape[-1]) - 1)
+                     for mask in mask_li], 'stack', -1)))
+        alp_stack = mtf.stack(alp, 'stack', -1) + mask
+        log_z = mtf.reduce_logsumexp(alp_stack, reduced_dim=alp_stack.shape[-1])
+        log_softmax = alp[0] - log_z
+        loss = 10 * (mtf.reduce_sum(mtf.negative(log_softmax)) / self.decoder.loss_denominator(alp[0], num_microbatches))
+      elif self.loss_type == 'margin':
+        alp = [mtf.reduce_sum(lp * mask, reduced_dim=lp.shape[-1]) / mtf.reduce_sum(mask, reduced_dim=mask.shape[-1])
+               for lp, mask in zip(decoder_logits_li, mask_li)]
+        mask = [mtf.to_bfloat16(mtf.layers.weights_nonzero(mtf.reduce_sum(mask, reduced_dim=mask.shape[-1]) - 1)) for mask in mask_li]
+        margin = 0
+        for _alp, _mask in zip(alp[1:], mask[1:]):
+          margin += mtf.maximum(self.margin + _alp - alp[0], 0) * _mask * mask[0]
+        loss = mtf.reduce_sum(margin) / self.decoder.loss_denominator(alp[0], num_microbatches)
+      else:
+        raise NotImplementedError
 
     if loss is not None and encoder_loss is not None:
       loss += encoder_loss
