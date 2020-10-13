@@ -10,6 +10,7 @@ from .utils import trivia_preprocessor, qa_dataset_fn, qa_dataset_fn_oneline, \
 UNIFIEDQA_GS = 'gs://unifiedqa/data'
 UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
 UNIFIEDQA_RAW_GS = 'gs://neulab-qa/unifiedqa/data'
+UNIFIEDQA_RAW_DECODE_GS = 'gs://neulab-qa/data/unifiedqa_decode'
 UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
 UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt2'
 
@@ -170,5 +171,28 @@ def build_uq(neg_method: str='indicator'):
     t5.data.MixtureRegistry.remove('uq_{}_oc_mix'.format(domain))
     t5.data.MixtureRegistry.add('uq_{}_oc_mix'.format(domain), ['uq_{}_oc'.format(domain)], default_rate=1.0)
 
+    # multi-line tasks
+    t5.data.TaskRegistry.add(
+      'uq_{}_decode_uq'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn, bucket=UNIFIEDQA_RAW_DECODE_GS + '_uq', domain=domain, use_neg=True, neg_method=neg_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_{}_decode_uq_ft_softmax'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn, bucket=UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_softmax', domain=domain, use_neg=True, neg_method=neg_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+
   t5.data.MixtureRegistry.remove('uq_ext_mix')
   t5.data.MixtureRegistry.add('uq_ext_mix', ['uq_{}_oc'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)
+
+  t5.data.MixtureRegistry.remove('uq_ext_decode_uq_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_uq_mix', ['uq_{}_decode_uq'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_uq_ft_softmax_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_uq_ft_softmax_mix', ['uq_{}_decode_uq_ft_softmax'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)
