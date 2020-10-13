@@ -12,7 +12,8 @@ UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
 UNIFIEDQA_RAW_GS = 'gs://neulab-qa/unifiedqa/data'
 UNIFIEDQA_RAW_DECODE_GS = 'gs://neulab-qa/data/unifiedqa_decode'
 UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
-UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt2'
+UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt'
+UNIFIEDQA_PREP_GS_BT_REP = 'gs://neulab-qa/data/unifiedqa_bt_replace'
 
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
@@ -126,8 +127,14 @@ def build_uq(neg_method: str='indicator'):
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
-    t5.data.MixtureRegistry.remove('uq_{}_bt_mix'.format(domain))
-    t5.data.MixtureRegistry.add('uq_{}_bt_mix'.format(domain), ['uq_{}_bt'.format(domain)], default_rate=1.0)
+    t5.data.TaskRegistry.add(
+      'uq_{}_bt_replace'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn, bucket=UNIFIEDQA_PREP_GS_BT_REP, domain=domain, use_neg=True, neg_method=neg_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
 
     # single-line tasks
     t5.data.TaskRegistry.add(
@@ -155,6 +162,8 @@ def build_uq(neg_method: str='indicator'):
 
   t5.data.MixtureRegistry.remove('uq_sub_test_bt_mix')
   t5.data.MixtureRegistry.add('uq_sub_test_bt_mix', ['uq_{}_bt'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_sub_test_bt_replace_mix')
+  t5.data.MixtureRegistry.add('uq_sub_test_bt_replace_mix', ['uq_{}_bt_replace'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)
 
   t5.data.MixtureRegistry.remove('uq_train_ol_mix')
   t5.data.MixtureRegistry.add('uq_train_ol_mix', ['uq_{}_ol'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)

@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from dataset.utils import IND2CHAR, CHAR2IND
 from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_OL, \
-  UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, DOMAINS, EXT_DOMAINS, MULTI_CHOICE
+  UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP,\
+  DOMAINS, SUB_TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE
 from dataset.unifiedqa import one2multi as one2multi_uq
 from dataset.test import one2multi as one2multi_test
 
@@ -190,6 +191,28 @@ def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
   print('total count {}'.format(count))
 
 
+def replace_in_ques_bt(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', split: str='dev'):
+  for domain, _ in domains:
+    from_file = os.path.join(from_bk, domain, split + '.' + format)
+    to_file = os.path.join(to_bk, domain, split + '.' + format)
+    print('{} -> {}'.format(from_file, to_file))
+    prev_id = None
+    prev_answer = None
+    with tf.io.gfile.GFile(from_file, 'r') as fin, tf.io.gfile.GFile(to_file, 'w') as fout:
+      for lid, line in enumerate(fin):
+        id, question, answer, correct = line.strip().split('\t')
+        ind, choice = int(id.split('-')[0]), int(id.split('-')[1])
+        if id != prev_id:
+          prev_answer = answer
+          prev_id = id
+        choice = IND2CHAR[choice]
+        start = question.find('({})'.format(choice))
+        start = question.find(prev_answer, start)
+        assert start >= 0
+        question = question[:start] + answer + question[start + len(prev_answer):]
+        fout.write('{}\t{}\t{}\t{}\n'.format(id, question, answer, correct))
+
+
 if __name__ == '__main__':
   # combine('test', 'test.prep')
   # get_input('test.prep', 'test.prep.input')
@@ -206,5 +229,7 @@ if __name__ == '__main__':
   #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq', EXT_DOMAINS, split='dev',
   #                 decode_file='output/decode/unifiedqa/ext/uq.txt-1100500')
 
-  convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_softmax', EXT_DOMAINS, split='dev',
-                   decode_file='output/decode/unifiedqa/ext/uq_ft_softmax_nobug.txt-1110000')
+  #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_softmax', EXT_DOMAINS, split='dev',
+  #                 decode_file='output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000')
+
+  replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, SUB_TEST_DOMAINS)

@@ -7,8 +7,8 @@ import mesh_tensorflow as mtf
 from mesh_tensorflow.transformer.transformer import delimited_lm_inputs_mask
 
 
-IND2CHAR = dict(zip(range(4), 'ABCD'))
-CHAR2IND = dict(zip('ABCD', range(4)))
+IND2CHAR = dict(zip(range(14), 'ABCDEFGHIJKLMN'))
+CHAR2IND = dict(zip('ABCDEFGHIJKLMN', range(14)))
 
 
 def trivia_preprocessor(ds):
