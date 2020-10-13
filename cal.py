@@ -22,7 +22,7 @@ def acc(mixture: str, score_file: str, split: str='dev', num_bt: int=1, temp: fl
     prev_ind = None
     for i, ex in enumerate(ds):
       l = sfin.readline().strip().split('\t', 1)[0]
-      ind = ex['inputs_plaintext'].numpy().decode()
+      ind = ex['inputs_plaintext'].numpy().decode().split('(a)', 1)[0]
       if prev_ind is not None and ind != prev_ind:
         scores = softmax(np.array(scores) / temp)
         assert len(scores) == len(weights) and len(scores) % num_bt == 0, 'wrong correspondence'
