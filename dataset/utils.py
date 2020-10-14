@@ -99,6 +99,8 @@ def qa_dataset_fn(split: str,
       return tf.strings.join([question, ('True:' if is_correct else 'False:')], separator=' '), answer, 1.0
     if neg_method == 'indicator_eval':
       return tf.strings.join([question, 'True'], separator=' '), answer, 1.0
+    if neg_method == 'indicator_eval_false':
+      return tf.strings.join([question, 'False'], separator=' '), answer, 1.0
     raise NotImplementedError
   ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
   ds = ds.filter(lambda *ex: use_neg or ex[-1] == 'True')
