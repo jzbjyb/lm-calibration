@@ -232,4 +232,7 @@ if __name__ == '__main__':
   #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_softmax', EXT_DOMAINS, split='dev',
   #                 decode_file='output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000')
 
-  replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, SUB_TEST_DOMAINS)
+  convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_margin', EXT_DOMAINS, split='dev',
+                   decode_file='output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000')
+
+  #replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, SUB_TEST_DOMAINS)
