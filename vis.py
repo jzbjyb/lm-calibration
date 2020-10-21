@@ -42,11 +42,13 @@ def to_stype(scalar, map, correct: bool) -> str:
     *([n * 100 for n in map.to_rgba(scalar)] + (['font-weight:bold' if correct else '']) + [scalar]))
 
 
-def vis(filename: str, outfilename: str, mixture: str, split: str, vocab):
+def vis(filename: str, outfilename: str, mixture: str, split: str, vocab, max_count: int=None):
   norm = matplotlib.colors.Normalize(vmin=-70, vmax=0)
   map = cm.ScalarMappable(norm=norm, cmap=cm.hot)
   with open(outfilename, 'w') as fout:
-    for inp, tgt_logprob_li in read_score(filename, mixture, split, vocab):
+    for i, (inp, tgt_logprob_li) in enumerate(read_score(filename, mixture, split, vocab)):
+      if max_count and i >= max_count:
+        break
       fout.write('<div><div>{}</div>{}</div><hr/>\n'.format(
         inp, ''.join(['<div>{} {}</div>'.format(
           score, ' '.join(['<span {}>{}</span>'.format(to_stype(l, map, weight==1), t) for t, l in zip(tgt, logprob)]))
@@ -59,10 +61,11 @@ if __name__ == '__main__':
   parser.add_argument('--split', type=str, help='split', default='dev')
   parser.add_argument('--score', type=str, help='score file')
   parser.add_argument('--out', type=str, help='output file')
+  parser.add_argument('--max', type=int, help='max output count', default=None)
   args = parser.parse_args()
 
   # build tasks and mixtures
   build(neg_method='weight')
 
   vocab = get_default_vocabulary()
-  vis(args.score, args.out, args.mix, args.split, vocab)
+  vis(args.score, args.out, args.mix, args.split, vocab, max_count=args.max)
