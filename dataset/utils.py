@@ -8,6 +8,7 @@ import xgboost as xgb
 import mesh_tensorflow as mtf
 from mesh_tensorflow.transformer.transformer import delimited_lm_inputs_mask
 import t5
+from t5.data.utils import get_default_vocabulary
 
 
 IND2CHAR = dict(zip(range(14), 'ABCDEFGHIJKLMN'))
@@ -113,12 +114,16 @@ def qa_dataset_fn(split: str,
 def read_score_data(filename: str, mixture: str, split: str):
   mix = t5.data.MixtureRegistry.get(mixture)
   ds = mix.get_dataset_in_order(split=split, sequence_length={'inputs': 512, 'targets': 512}, shuffle=False)
+  vocab = get_default_vocabulary()
 
   with open(filename, 'r') as fin:
     prev_inp = None
     scores = []
     input_len = []
     target_len = []
+    input_tokens = []
+    target_tokens = []
+    logprobs = []
     targets = []
     for l in fin:
       try:
@@ -127,21 +132,39 @@ def read_score_data(filename: str, mixture: str, split: str):
         break
       weight = float(ex['weights'].numpy())
       inp = ex['inputs_plaintext'].numpy().decode()
-      score = l.strip().split('\t', 1)[0]
+      ls = l.strip().split('\t')
+      if len(ls) == 1:
+        score = ls[0]
+      else:
+        score, inp, tgt, logprob = ls
+        inp = [int(i) for i in inp.split(',0', 1)[0].split(',')]
+        tgt = [int(i) for i in tgt.split(',0', 1)[0].split(',')]
+        logprob = [float(i) for i in logprob.split(',')]
+        inp = vocab.decode(inp)
+        tgt = [vocab.decode([i]) for i in tgt]
+        logprob = (inp, tgt, logprob[:len(tgt)])
       score = float(score)
       if prev_inp is not None and prev_inp != inp:
         var = np.var(np.exp(np.array(scores)))
         score_var = [var] * len(scores)
         yield {'log_prob': scores, 'prob_var': score_var,
                'input_len': input_len, 'target_len': target_len,
-               'target': targets}
+               'target': targets,
+               'input_tokens': input_tokens, 'target_tokens': target_tokens,
+               'logprobs': logprobs}
         scores = []
         input_len = []
         target_len = []
+        input_tokens = []
+        target_tokens = []
+        logprobs = []
         targets = []
       scores.append(score)
       input_len.append(len(ex['inputs'].numpy()))
       target_len.append(len(ex['targets'].numpy()))
+      input_tokens.append(ex['inputs'].numpy().tolist())
+      target_tokens.append(ex['targets'].numpy().tolist())
+      logprobs.append(logprob)
       targets.append(int(weight == 1))
       prev_inp = inp
     if len(scores) > 0:
@@ -149,7 +172,9 @@ def read_score_data(filename: str, mixture: str, split: str):
       score_var = [var] * len(scores)
       yield {'log_prob': scores, 'prob_var': score_var,
              'input_len': input_len, 'target_len': target_len,
-             'target': targets}
+             'target': targets,
+             'input_tokens': input_tokens, 'target_tokens': target_tokens,
+             'logprobs': logprobs}
 
 
 def convert_data_to_dmatrix(data, split: float=0.8):
