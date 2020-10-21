@@ -2,9 +2,12 @@ from typing import Dict, List, Tuple
 import os
 import functools
 import tensorflow as tf
+import numpy as np
 import gin
+import xgboost as xgb
 import mesh_tensorflow as mtf
 from mesh_tensorflow.transformer.transformer import delimited_lm_inputs_mask
+import t5
 
 
 IND2CHAR = dict(zip(range(14), 'ABCDEFGHIJKLMN'))
@@ -105,6 +108,72 @@ def qa_dataset_fn(split: str,
   ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
   ds = ds.filter(lambda *ex: use_neg or ex[-1] == 'True')
   return ds
+
+
+def read_score_data(filename: str, mixture: str, split: str):
+  mix = t5.data.MixtureRegistry.get(mixture)
+  ds = mix.get_dataset_in_order(split=split, sequence_length={'inputs': 512, 'targets': 512}, shuffle=False)
+
+  with open(filename, 'r') as fin:
+    prev_inp = None
+    scores = []
+    input_len = []
+    target_len = []
+    targets = []
+    for l in fin:
+      try:
+        ex = next(ds)
+      except StopIteration:
+        break
+      weight = float(ex['weights'].numpy())
+      inp = ex['inputs_plaintext'].numpy().decode()
+      score = l.strip().split('\t', 1)[0]
+      score = float(score)
+      if prev_inp is not None and prev_inp != inp:
+        var = np.var(np.exp(np.array(scores)))
+        score_var = [var] * len(scores)
+        yield {'log_prob': scores, 'prob_var': score_var,
+               'input_len': input_len, 'target_len': target_len,
+               'target': targets}
+        scores = []
+        input_len = []
+        target_len = []
+        targets = []
+      scores.append(score)
+      input_len.append(len(ex['inputs'].numpy()))
+      target_len.append(len(ex['targets'].numpy()))
+      targets.append(int(weight == 1))
+      prev_inp = inp
+    if len(scores) > 0:
+      var = np.var(np.exp(np.array(scores)))
+      score_var = [var] * len(scores)
+      yield {'log_prob': scores, 'prob_var': score_var,
+             'input_len': input_len, 'target_len': target_len,
+             'target': targets}
+
+
+def convert_data_to_dmatrix(data, split: float=0.8):
+  f1 = [v for d in data['log_prob'] for v in d]
+  f2 = [v for d in data['input_len'] for v in d]
+  f3 = [v for d in data['target_len'] for v in d]
+  f4 = [v for d in data['prob_var'] for v in d]
+  fs = [f1, f2, f3, f4]
+  for f in fs:
+    assert len(f) == len(fs[0])
+  x = np.array(fs).transpose()
+  y = np.array([v for d in data['target'] for v in d])
+  if split:
+    perm = np.random.permutation(len(x))
+    x = x[perm]
+    y = y[perm]
+    split = int(split * len(x))
+    x_train, x_dev = x[:split], x[split:]
+    y_train, y_dev = y[:split], y[split:]
+    dm_train = xgb.DMatrix(x_train, label=y_train)
+    dm_dev = xgb.DMatrix(x_dev, label=y_dev)
+    return dm_train, dm_dev
+  else:
+    return xgb.DMatrix(x, label=y), None
 
 
 @gin.configurable
