@@ -3,6 +3,7 @@ import os
 import functools
 import tensorflow as tf
 import numpy as np
+from collections import defaultdict
 import gin
 import xgboost as xgb
 import mesh_tensorflow as mtf
@@ -125,7 +126,8 @@ def read_score_data(filename: str, mixture: str, split: str):
     target_tokens = []
     logprobs = []
     targets = []
-    for l in fin:
+
+    for count_ind, l in enumerate(fin):
       try:
         ex = next(ds)
       except StopIteration:
@@ -135,15 +137,16 @@ def read_score_data(filename: str, mixture: str, split: str):
       ls = l.strip().split('\t')
       if len(ls) == 1:
         score = ls[0]
+        score = float(score)
       else:
-        score, inp, tgt, logprob = ls
-        inp = [int(i) for i in inp.split(',0', 1)[0].split(',')]
-        tgt = [int(i) for i in tgt.split(',0', 1)[0].split(',')]
+        score, inp_tokens, tgt_tokens, logprob = ls
+        inp_tokens = [int(i) for i in inp_tokens.split(',0', 1)[0].split(',')]
+        tgt_tokens = [int(i) for i in tgt_tokens.split(',0', 1)[0].split(',')]
         logprob = [float(i) for i in logprob.split(',')]
-        inp = vocab.decode(inp)
-        tgt = [vocab.decode([i]) for i in tgt]
-        logprob = (inp, tgt, logprob[:len(tgt)])
-      score = float(score)
+        inp_tokens = vocab.decode(inp_tokens)
+        tgt_tokens = [vocab.decode([i]) for i in tgt_tokens]
+        logprob = (inp_tokens, tgt_tokens, logprob[:len(tgt_tokens)])
+        score = float(score)
       if prev_inp is not None and prev_inp != inp:
         var = np.var(np.exp(np.array(scores)))
         score_var = [var] * len(scores)
