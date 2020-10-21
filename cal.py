@@ -40,7 +40,14 @@ def acc(mixture: str, score_file: str, split: str='dev', num_bt: int=1,
           argind = np.argsort(np.argsort(scores))
           scores_ranked = sorted(scores)
           margin = np.array(scores_ranked) - np.array([0] + scores_ranked[:-1])
-          scores = softmax(margin[argind])
+          scores = margin[argind]
+        elif norm == 'margin_order':
+          scores = softmax(np.array(scores))
+          argind = np.argsort(np.argsort(scores))
+          scores_ranked = sorted(scores)
+          margin = np.array(scores_ranked) - np.array([0] + scores_ranked[:-1])
+          margin_order = margin * np.array((1.0 - np.array(scores_ranked))[1:].tolist() + [1.0])
+          scores = margin_order[argind]
         else:
           raise NotImplementedError
         assert len(scores) == len(weights) and len(scores) % num_bt == 0, 'wrong correspondence'
@@ -53,7 +60,7 @@ def acc(mixture: str, score_file: str, split: str='dev', num_bt: int=1,
           weight = weight[0]
           acc_li.append(weight == 1)
           conf_li.append(score)
-        choice = np.argmax(_raw_scores)
+        choice = np.argmax(_scores)
         real_acc_li.append(int(_weights[choice][0] == 1))
         scores = []
         weights = []
@@ -104,7 +111,7 @@ if __name__ == '__main__':
   parser.add_argument('--score2', type=str, help='score file', default=None)
   parser.add_argument('--num_bt', type=int, help='number of translations per example', default=1)
   parser.add_argument('--temp', type=float, help='temperature of softmax', default=1.0)
-  parser.add_argument('--norm', type=str, help='normalization method', default='softmax', choices=['softmax', 'no', 'margin'])
+  parser.add_argument('--norm', type=str, help='normalization method', default='softmax', choices=['softmax', 'no', 'margin', 'margin_order'])
   args = parser.parse_args()
 
   # build tasks and mixtures

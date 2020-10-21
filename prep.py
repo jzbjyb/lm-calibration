@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import os
 import csv
 from operator import itemgetter
@@ -163,9 +163,10 @@ def convert_uq(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str
 
 
 def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
-                     split: str, decode_file: str, format: str='tsv', beam_size: int=5):
+                     split: str, decode_files: List[str], format: str='tsv', beam_size: int=5, use_lower: bool=False):
   count = 0
-  with open(decode_file, 'r') as defin:
+  defins = [open(df) for df in decode_files]
+  try:
     for domain, _ in domains:
       from_file = os.path.join(from_dir, domain, split + '.' + format)
       to_file = os.path.join(to_dir, domain, split + '.' + format)
@@ -176,18 +177,31 @@ def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
           question, answer = line.strip().split('\t')
           question = question.strip()
           answer = answer.strip()
-          decodes: List[str] = []
-          has_answer = False
-          for b in range(beam_size):
-            de = defin.readline().strip()
-            if de == answer and not has_answer:
-              has_answer = True
-              continue
-            decodes.append(de)
-          decodes = ([answer] + decodes)[:beam_size]  # the correct answer is always the first one
-          assert len(decodes) == beam_size, '#decodes {} {} less than {}'.format(len(decodes), decodes, beam_size)
-          for did, de in enumerate(decodes):
-            fout.write('{}\t{}\t{}\t{}\n'.format(lid, question, de, 'True' if did == 0 else 'False'))
+          if use_lower:
+            answer = answer.lower()
+          decodes: Dict[str, int] = defaultdict(lambda: 0)
+          for defin in defins:
+            for b in range(beam_size):
+              de = defin.readline().strip()
+              if use_lower:
+                de = de.lower()
+              if de == answer or de + '.' == answer or de == answer + '.':  # consider the period
+                continue
+              decodes[de] += 1
+          decodes: List[str] = list(map(itemgetter(0), sorted(decodes.items(), key=lambda x: -x[1])))
+          if len(decodes) == 0:
+            decodes = [answer] * beam_size
+            for did, de in enumerate(decodes):
+              fout.write('{}\t{}\t{}\t{}\n'.format(lid, question, de, 'True'))
+          else:
+            decodes = ([answer] + decodes * beam_size)[:beam_size]  # the correct answer is always the first one
+            assert len(decodes) == beam_size, '#decodes {} {} less than {}'.format(len(decodes), decodes, beam_size)
+            for did, de in enumerate(decodes):
+              fout.write('{}\t{}\t{}\t{}\n'.format(lid, question, de, 'True' if did == 0 else 'False'))
+  finally:
+    for defin in defins:
+      if defin:
+        defin.close()
   print('total count {}'.format(count))
 
 
@@ -232,7 +246,12 @@ if __name__ == '__main__':
   #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_softmax', EXT_DOMAINS, split='dev',
   #                 decode_file='output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000')
 
-  convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_margin', EXT_DOMAINS, split='dev',
-                   decode_file='output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000')
+  #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_margin', EXT_DOMAINS, split='dev',
+  #                 decode_file='output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000')
+
+  convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, EXT_DOMAINS, split='dev', use_lower=True,
+                   decode_files=['output/decode/unifiedqa/ext/uq.txt-1100500',
+                                 'output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000',
+                                 'output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000'])
 
   #replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, SUB_TEST_DOMAINS)
