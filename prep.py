@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from dataset.utils import IND2CHAR, CHAR2IND
 from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_OL, \
-  UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP,\
+  UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP,\
   DOMAINS, SUB_TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE
-from dataset.unifiedqa import one2multi as one2multi_uq
+from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test
 
 SEED = 2021
@@ -162,6 +162,15 @@ def convert_uq(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str
       one2multi_uq(in_fname, out_fname, **kwargs)
 
 
+def multi2one_all(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', **kwargs):
+  for domain, splits in domains:
+    for split in splits:
+      in_fname = os.path.join(from_bk, domain, split + '.' + format)
+      out_fname = os.path.join(to_bk, domain, split + '.' + format)
+      print('{} -> {}'.format(in_fname, out_fname))
+      multi2one(in_fname, out_fname, **kwargs)
+
+
 def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
                      split: str, decode_files: List[str], format: str='tsv', beam_size: int=5, use_lower: bool=False):
   count = 0
@@ -249,9 +258,11 @@ if __name__ == '__main__':
   #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_margin', EXT_DOMAINS, split='dev',
   #                 decode_file='output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000')
 
-  convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, EXT_DOMAINS, split='dev', use_lower=True,
-                   decode_files=['output/decode/unifiedqa/ext/uq.txt-1100500',
-                                 'output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000',
-                                 'output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000'])
+  #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, EXT_DOMAINS, split='dev', use_lower=True,
+  #                 decode_files=['output/decode/unifiedqa/ext/uq.txt-1100500',
+  #                               'output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000',
+  #                               'output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000'])
 
   #replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, SUB_TEST_DOMAINS)
+
+  multi2one_all(UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, EXT_DOMAINS, num_sep=5)

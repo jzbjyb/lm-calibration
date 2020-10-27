@@ -1511,8 +1511,7 @@ def get_estimator(model_type, vocabulary, mesh_shape,
 
 
 def train_model(estimator, vocabulary, sequence_length, batch_size,
-                train_dataset_fn, train_steps, ensemble_inputs,
-                dataset_split="train"):
+                train_dataset_fn, train_steps, ensemble_inputs):
   """Train a Mesh-TF model.
 
   Args:
@@ -1540,8 +1539,7 @@ def train_model(estimator, vocabulary, sequence_length, batch_size,
     del params
     dataset = train_dataset_fn(
         sequence_length=sequence_length,
-        vocabulary=vocabulary,
-        dataset_split=dataset_split)
+        vocabulary=vocabulary)
     dataset = dataset.repeat().batch(
         batch_size * (ensemble_inputs or 1), drop_remainder=True)
     dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)

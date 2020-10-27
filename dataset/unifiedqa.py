@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 import functools
 import tensorflow as tf
 import t5
@@ -11,6 +11,7 @@ UNIFIEDQA_GS = 'gs://unifiedqa/data'
 UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
 UNIFIEDQA_RAW_GS = 'gs://neulab-qa/unifiedqa/data'
 UNIFIEDQA_RAW_DECODE_GS = 'gs://neulab-qa/data/unifiedqa_decode'
+UNIFIEDQA_RAW_DECODE_GS_OL = 'gs://neulab-qa/data/unifiedqa_decode_ol'
 UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
 UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt'
 UNIFIEDQA_PREP_GS_BT_REP = 'gs://neulab-qa/data/unifiedqa_bt_replace'
@@ -41,7 +42,11 @@ EXT_DOMAINS = [('squad1_1', ('train', 'dev')),
                ('newsqa', ('train', 'dev')),
                ('quoref', ('train', 'dev')),
                ('ropes', ('train', 'dev'))]
-
+EXT_TRAIN_DOMAINS = [('squad1_1', ('train', 'dev')),
+                     ('newsqa', ('train', 'dev'))]
+EXT_TEST_DOMAINS = [('squad2', ('train', 'dev')),
+                    ('quoref', ('train', 'dev')),
+                    ('ropes', ('train', 'dev'))]
 MULTI_CHOICE = ['(A)', '(B)', '(C)', '(D)', '(E)', '(F)', '(G)', '(H)']
 
 
@@ -101,6 +106,30 @@ def one2multi(in_fname: str, out_fname: str, oneline: bool=False, num_sep: int=1
           line_ind,
           question,
           '\t'.join('{}\t{}'.format(a, c) for a, c in (aipairs + [('', '')] * (num_sep - len(aipairs))))))
+
+
+def multi2one(in_fname: str, out_fname: str, num_sep: int=10):
+  with tf.io.gfile.GFile(in_fname, 'r') as fin, tf.io.gfile.GFile(out_fname, 'w') as fout:
+    ans_cor_li: List[Tuple[str, str]] = []
+    prev_ques = None
+    prev_lid = None
+    ans_id = 0
+    for line in fin:
+      lid, ques, ans, cor = line.strip().split('\t')
+      if prev_lid != None and lid != prev_lid:
+        fout.write('{}\t{}\t{}\n'.format(
+          prev_lid, prev_ques,
+          '\t'.join('{}\t{}'.format(a, c) for a, c in (ans_cor_li + [('', '')] * (num_sep - len(ans_cor_li))))))
+        ans_cor_li = []
+        ans_id = 0
+      ans_cor_li.append((ans, ans_id))
+      prev_ques = ques
+      prev_lid = lid
+      ans_id += 1
+    if len(ans_cor_li) > 0:
+      fout.write('{}\t{}\t{}\n'.format(
+        lid, ques,
+        '\t'.join('{}\t{}'.format(a, c) for a, c in (ans_cor_li + [('', '')] * (num_sep - len(ans_cor_li))))))
 
 
 @gin.configurable
@@ -215,6 +244,17 @@ def build_uq(neg_method: str='indicator'):
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
 
+    # single-line tasks
+    t5.data.TaskRegistry.add(
+      'uq_{}_decode_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_RAW_DECODE_GS_OL, domain=domain, num_sep=5),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=5)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+
   t5.data.MixtureRegistry.remove('uq_ext_mix')
   t5.data.MixtureRegistry.add('uq_ext_mix', ['uq_{}_oc'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)
 
@@ -226,3 +266,6 @@ def build_uq(neg_method: str='indicator'):
   t5.data.MixtureRegistry.add('uq_ext_decode_uq_ft_softmax_mix', ['uq_{}_decode_uq_ft_softmax'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_uq_ft_margin_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_uq_ft_margin_mix', ['uq_{}_decode_uq_ft_margin'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)
+
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_mix', ['uq_{}_decode_ol'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
