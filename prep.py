@@ -1,17 +1,18 @@
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Set
 import os
 import csv
 from operator import itemgetter
 from collections import defaultdict
 import random
 import numpy as np
+from tqdm import tqdm
 from scipy.special import softmax
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from dataset.utils import IND2CHAR, CHAR2IND
 from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_OL, \
   UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP,\
-  DOMAINS, SUB_TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE
+  DOMAINS, SUB_TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE, UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test
 
@@ -236,6 +237,65 @@ def replace_in_ques_bt(from_bk, to_bk, domains: List[Tuple[str, List[str]]], for
         fout.write('{}\t{}\t{}\t{}\n'.format(id, question, answer, correct))
 
 
+def retrieve_aug(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', splits_restrict: Set[str]={'dev'}, topk=5):
+  def get_sent(page, avoid='\t'):
+    if page is None:
+      return ''
+    return page['text'][1].replace(avoid, ' ').replace('\n', ' ').strip() if len(page['text']) > 1 else ''
+  from kilt.retrievers import DrQA_tfidf, DPR_connector, BLINK_connector
+  from kilt.knowledge_source import KnowledgeSource
+  print('load model')
+  ranker = DrQA_tfidf.DrQA.from_default_config('drqa')
+  print('load mongo')
+  ks = KnowledgeSource()
+  for domain, splits in domains:
+    for split in splits:
+      if splits_restrict and split not in splits_restrict:
+        continue
+      in_fname = os.path.join(from_bk, domain, split + '.' + format)
+      out_fname = os.path.join(to_bk, domain, split + '.' + format)
+      print('{} -> {}'.format(in_fname, out_fname))
+      with tf.io.gfile.GFile(in_fname, 'r') as fin, tf.io.gfile.GFile(out_fname, 'w') as fout:
+        lid2data: List[Tuple] = []
+        query_data: List[Dict] = []
+        for i, line in enumerate(fin):
+          lid, ques, ans, correct = line.strip().split('\t')
+          lid2data.append((lid, ques, ans, correct))
+          query_data.append({'query': ques, 'id': '{}.{}'.format(i, 'q')})
+          query_data.append({'query': ans, 'id': '{}.{}'.format(i, 'a')})
+        ranker.fed_data(query_data, topk)
+        all_doc_id, all_doc_scores, all_query_id, provenance = ranker.run()
+        for i, (lid, ques, ans, correct) in tqdm(enumerate(lid2data)):
+          qrs = provenance['{}.{}'.format(i, 'q')]
+          ars = provenance['{}.{}'.format(i, 'a')]
+          qrs = [get_sent(ks.get_page_by_id(int(r['wikipedia_id']))) for r in qrs]
+          ars = [get_sent(ks.get_page_by_id(int(r['wikipedia_id']))) for r in ars]
+          if len(qrs) < topk:
+            qrs += [''] * (topk - len(qrs))
+          if len(ars) < topk:
+            ars += [''] * (topk - len(ars))
+          assert len(qrs) == len(ars) and len(qrs) == topk
+          fout.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(lid, ques, ans, correct, '\t'.join(qrs), '\t'.join(ars)))
+
+
+def truncate_ret_sent(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', num_sent: int=3):
+  empty = 0
+  for domain, splits in domains:
+    for split in splits:
+      in_fname = os.path.join(from_bk, domain, split + '.' + format)
+      out_fname = os.path.join(to_bk, domain, split + '.' + format)
+      with tf.io.gfile.GFile(in_fname, 'r') as fin, tf.io.gfile.GFile(out_fname, 'w') as fout:
+        for i, line in enumerate(fin):
+          ls = line.rstrip('\n').split('\t')
+          assert len(ls) == 4 + 5 * 2, '{}'.format(line)
+          prev, after = ls[:4], ls[4:]
+          if len(after[5]) == 0 or len(after[0]) == 0:
+            empty += 1
+          after = ['. '.join(s.split('. ')[:num_sent]) for s in after]
+          fout.write('\t'.join(prev + after) + '\n')
+  print('#empty {}'.format(empty))
+
+
 if __name__ == '__main__':
   # combine('test', 'test.prep')
   # get_input('test.prep', 'test.prep.input')
@@ -265,4 +325,13 @@ if __name__ == '__main__':
 
   #replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, SUB_TEST_DOMAINS)
 
-  multi2one_all(UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, EXT_DOMAINS, num_sep=5)
+  #multi2one_all(UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, EXT_DOMAINS, num_sep=5)
+
+  #retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
+  #             SUB_TEST_DOMAINS, splits_restrict={'dev'})
+  retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
+               SUB_TEST_DOMAINS, splits_restrict={'train', 'test'})
+  retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
+               list(set(DOMAINS) - set(SUB_TEST_DOMAINS)), splits_restrict={'train', 'dev', 'test'})
+
+  #truncate_ret_sent(UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, domains=DOMAINS, num_sent=3)

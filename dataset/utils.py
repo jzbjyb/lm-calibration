@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Set
 import os
 import functools
 import tensorflow as tf
@@ -109,6 +109,45 @@ def qa_dataset_fn(split: str,
     raise NotImplementedError
   ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
   ds = ds.filter(lambda *ex: use_neg or ex[-1] == 'True')
+  return ds
+
+
+def qa_dataset_fn_ret(split: str,
+                      shuffle_files: bool=False,
+                      bucket: str='',
+                      domain: str=None,
+                      format: str='tsv',
+                      num_ret: int=5,
+                      ret_method: str='q-prepend'):
+  ret_method = set(ret_method.split('-'))
+  if domain:
+    file = os.path.join(bucket, domain, split + '.' + format)
+  else:
+    file = os.path.join(bucket, split + '.' + format)
+  ds = tf.data.TextLineDataset(file)
+  ds = ds.map(functools.partial(
+    tf.io.decode_csv, record_defaults=['', '', '', ''] + [''] * num_ret * 2, field_delim='\t', use_quote_delim=False),
+    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+  def map_fn(ind: str, question: str, answer: str, correct: str, *rets):
+    question = tf.strings.regex_replace(question, '\\\\n', '\n')
+    is_correct = correct == 'True'
+    qrs, ars = rets[:num_ret], rets[num_ret:]
+    if 'q' in ret_method:
+      if 'append' in ret_method:
+        question = tf.strings.join([question, ' \n ',  qrs[0]])
+      elif 'prepend' in ret_method:
+        question = tf.strings.join([qrs[0], ' \n ', question])
+      else:
+        raise NotImplementedError
+    if 'a' in ret_method:
+      if 'append' in ret_method:
+        answer = tf.strings.join([answer, ' \n ', ars[0]])
+      elif 'prepend' in ret_method:
+        answer = tf.strings.join([ars[0], ' \n ', answer])
+      else:
+        raise NotImplementedError
+    return question, answer, 1.0 if is_correct else -1.0
+  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
   return ds
 
 

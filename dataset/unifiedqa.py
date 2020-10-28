@@ -1,14 +1,16 @@
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Set
 import functools
 import tensorflow as tf
 import t5
 import gin
 from .utils import trivia_preprocessor, qa_dataset_fn, qa_dataset_fn_oneline, \
-  qa_dataset_fn_onlycorrect, concat_preprocessor
+  qa_dataset_fn_onlycorrect, concat_preprocessor, qa_dataset_fn_ret
 
 
 UNIFIEDQA_GS = 'gs://unifiedqa/data'
 UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
+UNIFIEDQA_PREP_GS_RET_DRQA = 'gs://neulab-qa/data/unifiedqa_ret_drqa'
+UNIFIEDQA_PREP_GS_RET_DRQA_3S = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s'
 UNIFIEDQA_RAW_GS = 'gs://neulab-qa/unifiedqa/data'
 UNIFIEDQA_RAW_DECODE_GS = 'gs://neulab-qa/data/unifiedqa_decode'
 UNIFIEDQA_RAW_DECODE_GS_OL = 'gs://neulab-qa/data/unifiedqa_decode_ol'
@@ -133,7 +135,7 @@ def multi2one(in_fname: str, out_fname: str, num_sep: int=10):
 
 
 @gin.configurable
-def build_uq(neg_method: str='indicator'):
+def build_uq(neg_method: str='indicator', ret_method: str='q-prepend'):
   for domain, splits in DOMAINS:
     # multi-line tasks
     t5.data.TaskRegistry.add(
@@ -144,8 +146,14 @@ def build_uq(neg_method: str='indicator'):
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
-    t5.data.MixtureRegistry.remove('uq_{}_mix'.format(domain))
-    t5.data.MixtureRegistry.add('uq_{}_mix'.format(domain), ['uq_{}'.format(domain)], default_rate=1.0)
+    t5.data.TaskRegistry.add(
+      'uq_{}_ret_drqa_3s'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_ret, bucket=UNIFIEDQA_PREP_GS_RET_DRQA_3S, domain=domain, ret_method=ret_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
 
     # multi-line bt tasks
     t5.data.TaskRegistry.add(
@@ -175,8 +183,6 @@ def build_uq(neg_method: str='indicator'):
       token_preprocessor=[functools.partial(concat_preprocessor, num_sep=len(MULTI_CHOICE))],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
-    t5.data.MixtureRegistry.remove('uq_{}_ol_mix'.format(domain))
-    t5.data.MixtureRegistry.add('uq_{}_ol_mix'.format(domain), ['uq_{}_ol'.format(domain)], default_rate=1.0)
 
   t5.data.MixtureRegistry.remove('uq_train_mix')
   t5.data.MixtureRegistry.add('uq_train_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
@@ -197,6 +203,9 @@ def build_uq(neg_method: str='indicator'):
   t5.data.MixtureRegistry.remove('uq_train_ol_mix')
   t5.data.MixtureRegistry.add('uq_train_ol_mix', ['uq_{}_ol'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
 
+  t5.data.MixtureRegistry.remove('uq_sub_test_ret_drqa_3s_mix')
+  t5.data.MixtureRegistry.add('uq_sub_test_ret_drqa_3s_mix', ['uq_{}_ret_drqa_3s'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)
+
   for domain, splits in EXT_DOMAINS:
     # single-line extractive tasks
     t5.data.TaskRegistry.add(
@@ -206,8 +215,6 @@ def build_uq(neg_method: str='indicator'):
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
-    t5.data.MixtureRegistry.remove('uq_{}_oc_mix'.format(domain))
-    t5.data.MixtureRegistry.add('uq_{}_oc_mix'.format(domain), ['uq_{}_oc'.format(domain)], default_rate=1.0)
 
     # multi-line tasks
     t5.data.TaskRegistry.add(
@@ -269,3 +276,5 @@ def build_uq(neg_method: str='indicator'):
 
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_mix', ['uq_{}_decode_ol'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_test_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_test_mix', ['uq_{}_decode'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
