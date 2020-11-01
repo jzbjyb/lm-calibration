@@ -12,7 +12,8 @@ import tensorflow as tf
 from dataset.utils import IND2CHAR, CHAR2IND
 from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_OL, \
   UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP,\
-  DOMAINS, SUB_TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE, UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S
+  DOMAINS, SUB_TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE, UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, \
+  UNIFIEDQA_RAW_DECODE_GS_OL_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test
 
@@ -296,6 +297,24 @@ def truncate_ret_sent(from_bk, to_bk, domains: List[Tuple[str, List[str]]], form
   print('#empty {}'.format(empty))
 
 
+def convert_ol_to_add_answers(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', multiline: bool=False):
+  for domain, splits in domains:
+    for split in splits:
+      in_fname = os.path.join(from_bk, domain, split + '.' + format)
+      out_fname = os.path.join(to_bk, domain, split + '.' + format)
+      print(in_fname, out_fname)
+      with tf.io.gfile.GFile(in_fname, 'r') as fin, tf.io.gfile.GFile(out_fname, 'w') as fout:
+        for i, line in enumerate(fin):
+          ls = line.rstrip('\n').split('\t')
+          ans = [a for i, a in enumerate(ls[2:]) if i % 2 == 0]
+          ls[1] = '{} \\n {}'.format(ls[1], ' '.join(['({}) {}'.format(IND2CHAR[i], a) for i, a in enumerate(ans)]))
+          if multiline:
+            for i, an in enumerate(ans):
+              fout.write('{}\t{}\t{}\t{}\n'.format(ls[0], ls[1], an, 'True' if i == 0 else 'False'))
+          else:
+            fout.write('{}\n'.format('\t'.join(ls)))
+
+
 if __name__ == '__main__':
   # combine('test', 'test.prep')
   # get_input('test.prep', 'test.prep.input')
@@ -329,9 +348,12 @@ if __name__ == '__main__':
 
   #retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
   #             SUB_TEST_DOMAINS, splits_restrict={'dev'})
-  retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
-               SUB_TEST_DOMAINS, splits_restrict={'train', 'test'})
-  retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
-               list(set(DOMAINS) - set(SUB_TEST_DOMAINS)), splits_restrict={'train', 'dev', 'test'})
+  #retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
+  #             SUB_TEST_DOMAINS, splits_restrict={'train', 'test'})
+  #retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
+  #             list(set(DOMAINS) - set(SUB_TEST_DOMAINS)), splits_restrict={'train', 'dev', 'test'})
 
   #truncate_ret_sent(UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, domains=DOMAINS, num_sent=3)
+
+  #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_OL_ANS, EXT_DOMAINS, multiline=False)
+  convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_ANS, EXT_DOMAINS, multiline=True)

@@ -6,7 +6,7 @@ train_steps=$3  # 1105000
 loss=$4
 
 tpu_name=jzb	# default-dgdw2
-mix=uq_ext_decode_train_ol_mix
+mix=uq_ext_decode_train_ol_ans_mix
 split=dev
 num_sep=5
 tgt_len=2560

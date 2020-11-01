@@ -13,7 +13,9 @@ UNIFIEDQA_PREP_GS_RET_DRQA = 'gs://neulab-qa/data/unifiedqa_ret_drqa'
 UNIFIEDQA_PREP_GS_RET_DRQA_3S = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s'
 UNIFIEDQA_RAW_GS = 'gs://neulab-qa/unifiedqa/data'
 UNIFIEDQA_RAW_DECODE_GS = 'gs://neulab-qa/data/unifiedqa_decode'
+UNIFIEDQA_RAW_DECODE_GS_ANS = 'gs://neulab-qa/data/unifiedqa_decode_ans'
 UNIFIEDQA_RAW_DECODE_GS_OL = 'gs://neulab-qa/data/unifiedqa_decode_ol'
+UNIFIEDQA_RAW_DECODE_GS_OL_ANS = 'gs://neulab-qa/data/unifiedqa_decode_ol_ans'
 UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
 UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt'
 UNIFIEDQA_PREP_GS_BT_REP = 'gs://neulab-qa/data/unifiedqa_bt_replace'
@@ -226,6 +228,14 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
     t5.data.TaskRegistry.add(
+      'uq_{}_decode_ans'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn, bucket=UNIFIEDQA_RAW_DECODE_GS_ANS, domain=domain, use_neg=True, neg_method=neg_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
       'uq_{}_decode_uq'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_fn, bucket=UNIFIEDQA_RAW_DECODE_GS + '_uq', domain=domain, use_neg=True, neg_method=neg_method),
@@ -261,6 +271,15 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       token_preprocessor=[functools.partial(concat_preprocessor, num_sep=5)],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_{}_decode_ol_ans'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_RAW_DECODE_GS_OL_ANS, domain=domain, num_sep=5),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=5)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
 
   t5.data.MixtureRegistry.remove('uq_ext_mix')
   t5.data.MixtureRegistry.add('uq_ext_mix', ['uq_{}_oc'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)
@@ -276,5 +295,9 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
 
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_mix', ['uq_{}_decode_ol'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_ans_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_ans_mix', ['uq_{}_decode_ol_ans'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_mix', ['uq_{}_decode'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_test_ans_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_test_ans_mix', ['uq_{}_decode_ans'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)

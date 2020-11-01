@@ -7,7 +7,7 @@ step=$4  # 1100500
 mix=$5
 split=$6
 ret_method='q-append'
-ret_ind=$7
+ret_ind=0
 
 tpu_name=jzb  # default-dgdw2
 gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
