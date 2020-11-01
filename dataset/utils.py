@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Tuple, Set, Union
 import os
 import functools
 import tensorflow as tf
@@ -118,6 +118,7 @@ def qa_dataset_fn_ret(split: str,
                       domain: str=None,
                       format: str='tsv',
                       num_ret: int=5,
+                      ret_ind: int=0,
                       ret_method: str='q-prepend'):
   ret_method = set(ret_method.split('-'))
   if domain:
@@ -134,16 +135,16 @@ def qa_dataset_fn_ret(split: str,
     qrs, ars = rets[:num_ret], rets[num_ret:]
     if 'q' in ret_method:
       if 'append' in ret_method:
-        question = tf.strings.join([question, ' \n ',  qrs[0]])
+        question = tf.strings.join([question, ' \n ',  qrs[ret_ind]])
       elif 'prepend' in ret_method:
-        question = tf.strings.join([qrs[0], ' \n ', question])
+        question = tf.strings.join([qrs[ret_ind], ' \n ', question])
       else:
         raise NotImplementedError
     if 'a' in ret_method:
       if 'append' in ret_method:
-        answer = tf.strings.join([answer, ' \n ', ars[0]])
+        answer = tf.strings.join([answer, ' \n ', ars[ret_ind]])
       elif 'prepend' in ret_method:
-        answer = tf.strings.join([ars[0], ' \n ', answer])
+        answer = tf.strings.join([ars[ret_ind], ' \n ', answer])
       else:
         raise NotImplementedError
     return question, answer, 1.0 if is_correct else -1.0

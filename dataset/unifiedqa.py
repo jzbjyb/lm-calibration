@@ -135,7 +135,7 @@ def multi2one(in_fname: str, out_fname: str, num_sep: int=10):
 
 
 @gin.configurable
-def build_uq(neg_method: str='indicator', ret_method: str='q-prepend'):
+def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-prepend'):
   for domain, splits in DOMAINS:
     # multi-line tasks
     t5.data.TaskRegistry.add(
@@ -149,7 +149,7 @@ def build_uq(neg_method: str='indicator', ret_method: str='q-prepend'):
     t5.data.TaskRegistry.add(
       'uq_{}_ret_drqa_3s'.format(domain),
       dataset_fn=functools.partial(
-        qa_dataset_fn_ret, bucket=UNIFIEDQA_PREP_GS_RET_DRQA_3S, domain=domain, ret_method=ret_method),
+        qa_dataset_fn_ret, bucket=UNIFIEDQA_PREP_GS_RET_DRQA_3S, domain=domain, ret_ind=ret_ind, ret_method=ret_method),
       splits=splits,
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,

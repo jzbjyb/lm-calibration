@@ -7,6 +7,7 @@ step=$4  # 1100500
 mix=$5
 split=$6
 ret_method='q-append'
+ret_ind=$7
 
 tpu_name=jzb  # default-dgdw2
 gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
@@ -33,4 +34,5 @@ mkdir -p $(dirname "${output}")
     --gin_param="mesh_eval_dataset_fn.num_eval_examples = None" \
     --gin_param="build.neg_method = '${neg_method}'" \
     --gin_param="build.ret_method = '${ret_method}'" \
+    --gin_param="build.ret_ind = ${ret_ind}" \
     --gin_param="run.batch_size = ('tokens_per_batch', ${tpb})"
