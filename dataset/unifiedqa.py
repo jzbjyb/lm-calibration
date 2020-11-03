@@ -186,6 +186,17 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
 
+  t5.data.TaskRegistry.add(
+    'dup_test',
+    dataset_fn=functools.partial(
+      qa_dataset_fn, bucket=UNIFIEDQA_PREP_GS, domain='dup_test', use_neg=True, neg_method=neg_method),
+    splits=('train', 'dev'),
+    text_preprocessor=[trivia_preprocessor],
+    postprocess_fn=t5.data.postprocessors.lower_text,
+    metric_fns=[t5.evaluation.metrics.accuracy])
+  t5.data.MixtureRegistry.remove('dup_test_mix')
+  t5.data.MixtureRegistry.add('dup_test_mix', ['dup_test'], default_rate=1.0)
+
   t5.data.MixtureRegistry.remove('uq_train_mix')
   t5.data.MixtureRegistry.add('uq_train_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_test_mix')
