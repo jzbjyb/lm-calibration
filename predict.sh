@@ -5,11 +5,12 @@ step=$2  # 1100500
 output=$3
 mix=$4
 split=$5
+beam_size=20
 
-tpu_name=jzb  # default-dgdw2
+tpu_name=default-dgdw2  # default-dgdw2
 gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
 model_parallelism=8
-tpb=32768
+tpb=16384  # 32768
 
 mkdir -p $(dirname "${output}")
 
@@ -31,4 +32,4 @@ mkdir -p $(dirname "${output}")
     --gin_param="infer_checkpoint_step = ${step}" \
     --gin_param="run.batch_size = ('tokens_per_batch', ${tpb})" \
     --gin_param="Bitransformer.decode.max_decode_length = 128" \
-    --gin_param="Bitransformer.decode.beam_size = 5"
+    --gin_param="Bitransformer.decode.beam_size = ${beam_size}"

@@ -307,7 +307,8 @@ def convert_ol_to_add_answers(from_bk, to_bk, domains: List[Tuple[str, List[str]
         for i, line in enumerate(fin):
           ls = line.rstrip('\n').split('\t')
           ans = [a for i, a in enumerate(ls[2:]) if i % 2 == 0]
-          ls[1] = '{} \\n {}'.format(ls[1], ' '.join(['({}) {}'.format(IND2CHAR[i], a) for i, a in enumerate(ans)]))
+          shuf_ans = np.random.choice(ans, len(ans), replace=False)
+          ls[1] = '{} \\n {}'.format(ls[1], ' '.join(['({}) {}'.format(IND2CHAR[i], a) for i, a in enumerate(shuf_ans)]))
           if multiline:
             for i, an in enumerate(ans):
               fout.write('{}\t{}\t{}\t{}\n'.format(ls[0], ls[1], an, 'True' if i == 0 else 'False'))
