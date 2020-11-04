@@ -4,7 +4,7 @@ import tensorflow as tf
 import t5
 import gin
 from .utils import trivia_preprocessor, qa_dataset_fn, qa_dataset_fn_oneline, \
-  qa_dataset_fn_onlycorrect, concat_preprocessor, qa_dataset_fn_ret
+  qa_dataset_fn_onlycorrect, concat_preprocessor, qa_dataset_fn_ret, qa_dataset_onlyinput_fn
 
 
 UNIFIEDQA_GS = 'gs://unifiedqa/data'
@@ -151,6 +151,14 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
     t5.data.TaskRegistry.add(
+      'uq_{}_inp'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_onlyinput_fn, bucket=UNIFIEDQA_PREP_GS, domain=domain),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
       'uq_{}_ret_drqa_3s'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_fn_ret, bucket=UNIFIEDQA_PREP_GS_RET_DRQA_3S, domain=domain, ret_ind=ret_ind, ret_method=ret_method),
@@ -201,10 +209,14 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
 
   t5.data.MixtureRegistry.remove('uq_train_mix')
   t5.data.MixtureRegistry.add('uq_train_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_train_inp_mix')
+  t5.data.MixtureRegistry.add('uq_train_inp_mix', ['uq_{}_inp'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_test_mix')
   t5.data.MixtureRegistry.add('uq_test_mix', ['uq_{}'.format(domain) for domain, _ in TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_sub_test_mix')
   t5.data.MixtureRegistry.add('uq_sub_test_mix', ['uq_{}'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_sub_test_inp_mix')
+  t5.data.MixtureRegistry.add('uq_sub_test_inp_mix', ['uq_{}_inp'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_all_mix')
   t5.data.MixtureRegistry.add('uq_all_mix', ['uq_{}'.format(domain) for domain, _ in TRAIN_DOMAINS + TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_sub_all_mix')

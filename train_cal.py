@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 import argparse
 from tqdm import tqdm
 import random
@@ -17,25 +17,31 @@ torch.random.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 
 
-def read_data(filename: str, mixture: str, split: str):
+def read_data(filename: str, mixture: str, split: str, **kwargs):
   scores_li: List[List[float]] = []
   input_len_li: List[List[int]] = []
   target_len_li: List[List[int]] = []
   score_var_li: List[List[float]] = []
   targets_li: List[List[float]] = []
+  inp_perp_li: List[List[float]] = []
 
-  for sample in read_score_data(filename, mixture, split):
+  for sample in read_score_data(filename, mixture, split, **kwargs):
     scores_li.append(sample['log_prob'])
     score_var_li.append(sample['prob_var'])
     input_len_li.append(sample['input_len'])
     target_len_li.append(sample['target_len'])
     targets_li.append(sample['target'])
+    if 'inp_perp' in sample:
+      inp_perp_li.append(sample['inp_perp'])
 
-  return {'log_prob': np.array(scores_li),
+  data = {'log_prob': np.array(scores_li),
           'prob_var': np.array(score_var_li),
           'input_len': np.array(input_len_li),
           'target_len': np.array(target_len_li),
           'target': np.array(targets_li)}
+  if len(inp_perp_li) > 0:
+    data['inp_perp'] = np.array(inp_perp_li)
+  return data
 
 
 class TempCal(nn.Module):
@@ -100,13 +106,14 @@ if __name__ == '__main__':
   parser.add_argument('--mix', type=str, help='mixture', default='uq_sub_test_mix')
   parser.add_argument('--split', type=str, help='split', default='dev')
   parser.add_argument('--score', type=str, help='score file')
+  parser.add_argument('--inp_perp', type=str, help='feature of input perplexity', default=None)
   parser.add_argument('--out', type=str, help='output file')
   args = parser.parse_args()
 
   # build tasks and mixtures
   build(neg_method='weight')
 
-  data = read_data(args.score, args.mix, args.split)
+  data = read_data(args.score, args.mix, args.split, inp_perp=args.inp_perp)
   print('#examples {}'.format(len(data['target'])))
 
   #train_temp(args, data)

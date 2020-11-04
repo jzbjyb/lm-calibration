@@ -6,17 +6,17 @@ train_steps=$3  # 1105000
 loss=$4
 
 tpu_name=jzb	# default-dgdw2
-mix=uq_train_ol_mix
-split=train
-num_sep=8
-tgt_len=4096
-gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/11B
+mix=uq_ext_decode_train_ol_ans_no_mix
+split=dev
+num_sep=5
+tgt_len=2560
+gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
 #from_model_dir=gs://neulab-qa/t5-data/pretrained_models/small/model.ckpt-1000000
 #to_model_dir=gs://neulab-qa/t5-data/pretrained_models/small_ft
-from_model=gs://neulab-qa/unifiedqa/models/11B/model.ckpt-1100500
+from_model=gs://neulab-qa/unifiedqa/models/3B/model.ckpt-1100500
 to_model_dir=gs://neulab-qa/unifiedqa/models/${output}
 model_parallelism=8
-tpb=4096  # 16384, 15360
+tpb=15360  # 16384 4096, 15360
 
 ./run_test.py \
     --tpu="${tpu_name}" \

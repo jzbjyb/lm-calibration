@@ -22,7 +22,7 @@ def choose_score(scores_li: List[List[float]], weights: List[float]):
 
 
 def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
-        temp: float=1.0, norm: str = 'softmax', xgb_model_path=None, ana: bool=False):
+        temp: float=1.0, norm: str = 'softmax', xgb_model_path=None, ana: bool=False, **kwargs):
   real_acc_li = []
   acc_li = []
   conf_li = []
@@ -40,7 +40,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
   else:
     xgb_model = None
 
-  sample_gens = [read_score_data(sf, mixture, split) for sf in score_files]
+  sample_gens = [read_score_data(sf, mixture, split, **kwargs) for sf in score_files]
   while True:
     try:
       samples = [next(sg) for sg in sample_gens]
@@ -194,6 +194,7 @@ if __name__ == '__main__':
   parser.add_argument('--mix', type=str, help='mixture', default='uq_sub_test_mix')
   parser.add_argument('--split', type=str, help='split', default='dev')
   parser.add_argument('--score', type=str, help='score file', nargs='+')
+  parser.add_argument('--inp_perp', type=str, help='feature of input perplexity', default=None)
   parser.add_argument('--num_bt', type=int, help='number of translations per example', default=1)
   parser.add_argument('--temp', type=float, help='temperature of softmax', default=1.0)
   parser.add_argument('--xgb', type=str, help='xgb model path', default=None)
@@ -204,4 +205,4 @@ if __name__ == '__main__':
   # build tasks and mixtures
   build(neg_method='weight')
 
-  acc(args.mix, args.score, args.split, args.num_bt, args.temp, norm=args.norm, xgb_model_path=args.xgb, ana=args.ana)
+  acc(args.mix, args.score, args.split, args.num_bt, args.temp, norm=args.norm, xgb_model_path=args.xgb, ana=args.ana, inp_perp=args.inp_perp)

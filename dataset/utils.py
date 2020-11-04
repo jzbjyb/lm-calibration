@@ -112,6 +112,26 @@ def qa_dataset_fn(split: str,
   return ds
 
 
+def qa_dataset_onlyinput_fn(split: str,
+                            shuffle_files: bool=False,
+                            bucket: str='',
+                            domain: str=None,
+                            format: str='tsv'):
+  if domain:
+    file = os.path.join(bucket, domain, split + '.' + format)
+  else:
+    file = os.path.join(bucket, split + '.' + format)
+  ds = tf.data.TextLineDataset(file)
+  ds = ds.map(functools.partial(
+    tf.io.decode_csv, record_defaults=['', '', '', ''], field_delim='\t', use_quote_delim=False),
+    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+  def map_fn(ind: str, question: str, answer: str, correct: str):
+    question = tf.strings.regex_replace(question, '\\\\n', '\n')
+    return '', question, 1.0
+  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
+  return ds
+
+
 def qa_dataset_fn_ret(split: str,
                       shuffle_files: bool=False,
                       bucket: str='',
@@ -152,12 +172,17 @@ def qa_dataset_fn_ret(split: str,
   return ds
 
 
-def read_score_data(filename: str, mixture: str, split: str):
+def read_score_data(filename: str, mixture: str, split: str, **kwargs):
   mix = t5.data.MixtureRegistry.get(mixture)
   ds = mix.get_dataset_in_order(split=split, sequence_length={'inputs': 512, 'targets': 512}, shuffle=False)
   vocab = get_default_vocabulary()
 
   with open(filename, 'r') as fin:
+    if 'inp_perp' in kwargs and kwargs['inp_perp'] is not None:
+      inp_perp_fin = open(kwargs['inp_perp'], 'r')
+    else:
+      inp_perp_fin = None
+
     prev_inp = None
     scores = []
     input_len = []
@@ -168,10 +193,20 @@ def read_score_data(filename: str, mixture: str, split: str):
     targets = []
 
     for count_ind, l in enumerate(fin):
+      # read dataset
       try:
         ex = next(ds)
       except StopIteration:
         break
+      # read other features
+      if inp_perp_fin:
+        inp_perp_ls = inp_perp_fin.readline().strip().split('\t')
+        inp_perp = float(inp_perp_ls[0])
+        inp_prep_len = len(inp_perp_ls[2].split(',0', 1)[0].split(','))
+        inp_perp /= (inp_prep_len or 1)
+      else:
+        inp_perp = None
+
       weight = float(ex['weights'].numpy())
       inp = ex['inputs_plaintext'].numpy().decode()
       ls = l.strip().split('\t')
@@ -190,11 +225,14 @@ def read_score_data(filename: str, mixture: str, split: str):
       if prev_inp is not None and prev_inp != inp:
         var = np.var(np.exp(np.array(scores)))
         score_var = [var] * len(scores)
-        yield {'log_prob': scores, 'prob_var': score_var,
-               'input_len': input_len, 'target_len': target_len,
-               'target': targets,
-               'input_tokens': input_tokens, 'target_tokens': target_tokens,
-               'logprobs': logprobs}
+        yield_result = {'log_prob': scores, 'prob_var': score_var,
+                        'input_len': input_len, 'target_len': target_len,
+                        'target': targets,
+                        'input_tokens': input_tokens, 'target_tokens': target_tokens,
+                        'logprobs': logprobs}
+        if inp_perp is not None:
+          yield_result['inp_perp'] = [inp_perp] * len(scores)
+        yield yield_result
         scores = []
         input_len = []
         target_len = []
@@ -213,11 +251,14 @@ def read_score_data(filename: str, mixture: str, split: str):
     if len(scores) > 0:
       var = np.var(np.exp(np.array(scores)))
       score_var = [var] * len(scores)
-      yield {'log_prob': scores, 'prob_var': score_var,
-             'input_len': input_len, 'target_len': target_len,
-             'target': targets,
-             'input_tokens': input_tokens, 'target_tokens': target_tokens,
-             'logprobs': logprobs}
+      yield_result = {'log_prob': scores, 'prob_var': score_var,
+                      'input_len': input_len, 'target_len': target_len,
+                      'target': targets,
+                      'input_tokens': input_tokens, 'target_tokens': target_tokens,
+                      'logprobs': logprobs}
+      if inp_perp is not None:
+        yield_result['inp_perp'] = [inp_perp] * len(scores)
+      yield yield_result
 
 
 def convert_data_to_dmatrix(data, split: float=0.8):
@@ -226,6 +267,9 @@ def convert_data_to_dmatrix(data, split: float=0.8):
   f3 = [v for d in data['target_len'] for v in d]
   f4 = [v for d in data['prob_var'] for v in d]
   fs = [f1, f2, f3, f4]
+  if 'inp_perp' in data:
+    f5 = [v for d in data['inp_perp'] for v in d]
+    fs.append(f5)
   for f in fs:
     assert len(f) == len(fs[0])
   x = np.array(fs).transpose()
