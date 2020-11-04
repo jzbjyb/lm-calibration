@@ -13,7 +13,7 @@ from dataset.utils import IND2CHAR, CHAR2IND
 from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_OL, \
   UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP,\
   DOMAINS, SUB_TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE, UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, \
-  UNIFIEDQA_RAW_DECODE_GS_OL_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS
+  UNIFIEDQA_RAW_DECODE_GS_OL_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS_NO, UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test
 
@@ -174,7 +174,8 @@ def multi2one_all(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: 
 
 
 def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
-                     split: str, decode_files: List[str], format: str='tsv', beam_size: int=5, use_lower: bool=False):
+                     split: str, decode_files: List[str], format: str='tsv', beam_size: int=5,
+                     use_lower: bool=False, add_ans: bool=False):
   count = 0
   defins = [open(df) for df in decode_files]
   try:
@@ -191,15 +192,20 @@ def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
           if use_lower:
             answer = answer.lower()
           decodes: Dict[str, int] = defaultdict(lambda: 0)
+          real_decodes: Dict[str, int] = defaultdict(lambda: 0)
           for defin in defins:
             for b in range(beam_size):
               de = defin.readline().strip()
               if use_lower:
                 de = de.lower()
+              real_decodes[de] += 1
               if de == answer or de + '.' == answer or de == answer + '.':  # consider the period
                 continue
               decodes[de] += 1
           decodes: List[str] = list(map(itemgetter(0), sorted(decodes.items(), key=lambda x: -x[1])))
+          real_decodes: List[str] = list(map(itemgetter(0), sorted(real_decodes.items(), key=lambda x: -x[1])))[:beam_size]
+          if add_ans:
+            question = '{} \\n {}'.format(question, ' '.join(['({}) {}'.format(IND2CHAR[i], a) for i, a in enumerate(real_decodes)]))
           if len(decodes) == 0:
             decodes = [answer] * beam_size
             for did, de in enumerate(decodes):
@@ -357,4 +363,10 @@ if __name__ == '__main__':
   #truncate_ret_sent(UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, domains=DOMAINS, num_sent=3)
 
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_OL_ANS, EXT_DOMAINS, multiline=False)
-  convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_ANS, EXT_DOMAINS, multiline=True)
+  #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_ANS, EXT_DOMAINS, multiline=True)
+
+  #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS_ANS_NO, EXT_DOMAINS, split='dev', use_lower=True,
+  #                 decode_files=['output/decode/unifiedqa/ext/uq.txt-1100500',
+  #                               'output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000',
+  #                               'output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000'], add_ans=True)
+  multi2one_all(UNIFIEDQA_RAW_DECODE_GS_ANS_NO, UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO, EXT_DOMAINS, num_sep=5)
