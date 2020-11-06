@@ -13,7 +13,8 @@ from dataset.utils import IND2CHAR, CHAR2IND
 from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_OL, \
   UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP,\
   DOMAINS, SUB_TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE, UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, \
-  UNIFIEDQA_RAW_DECODE_GS_OL_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS_NO, UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO
+  UNIFIEDQA_RAW_DECODE_GS_OL_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS_NO, \
+  UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO, UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test
 
@@ -322,6 +323,27 @@ def convert_ol_to_add_answers(from_bk, to_bk, domains: List[Tuple[str, List[str]
             fout.write('{}\n'.format('\t'.join(ls)))
 
 
+def combine_ret_bt(from_bk_ret, from_bk_bt, to_bk, domains: List[Tuple[str, List[str]]],
+                   format: str='tsv', splits_restrict: Set[str]={'dev'}, num_bt: int=5):
+  for domain, splits in domains:
+    for split in splits:
+      if splits_restrict and split not in splits_restrict:
+        continue
+      in_fname_ret = os.path.join(from_bk_ret, domain, split + '.' + format)
+      in_fname_bt = os.path.join(from_bk_bt, domain, split + '.' + format)
+      out_fname = os.path.join(to_bk, domain, split + '.' + format)
+      print(in_fname_bt, in_fname_ret, out_fname)
+      with tf.io.gfile.GFile(in_fname_ret, 'r') as fin_ret, \
+        tf.io.gfile.GFile(in_fname_bt, 'r') as fin_bt, \
+        tf.io.gfile.GFile(out_fname, 'w') as fout:
+        for i, line_ret in enumerate(fin_ret):
+          rets = line_ret.rstrip('\n').split('\t')[4:]
+          nb = num_bt
+          while nb > 0:
+            fout.write(fin_bt.readline().rstrip('\n') + '\t' + '\t'.join(rets) + '\n')
+            nb -= 1
+
+
 if __name__ == '__main__':
   # combine('test', 'test.prep')
   # get_input('test.prep', 'test.prep.input')
@@ -369,4 +391,7 @@ if __name__ == '__main__':
   #                 decode_files=['output/decode/unifiedqa/ext/uq.txt-1100500',
   #                               'output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000',
   #                               'output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000'], add_ans=True)
-  multi2one_all(UNIFIEDQA_RAW_DECODE_GS_ANS_NO, UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO, EXT_DOMAINS, num_sep=5)
+  #multi2one_all(UNIFIEDQA_RAW_DECODE_GS_ANS_NO, UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO, EXT_DOMAINS, num_sep=5)
+
+  combine_ret_bt(UNIFIEDQA_PREP_GS_RET_DRQA_3S, UNIFIEDQA_PREP_GS_BT_REP, UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP,
+                 SUB_TEST_DOMAINS, splits_restrict={'dev'}, num_bt=5)

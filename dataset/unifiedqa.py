@@ -21,6 +21,7 @@ UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO = 'gs://neulab-qa/data/unifiedqa_decode_ol_ans
 UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
 UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt'
 UNIFIEDQA_PREP_GS_BT_REP = 'gs://neulab-qa/data/unifiedqa_bt_replace'
+UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s_bt_replace'
 
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
@@ -184,6 +185,14 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_{}_ret_drqa_3s_bt_replace'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_ret, bucket=UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP, domain=domain, ret_ind=ret_ind, ret_method=ret_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
 
     # single-line tasks
     t5.data.TaskRegistry.add(
@@ -232,6 +241,8 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
 
   t5.data.MixtureRegistry.remove('uq_sub_test_ret_drqa_3s_mix')
   t5.data.MixtureRegistry.add('uq_sub_test_ret_drqa_3s_mix', ['uq_{}_ret_drqa_3s'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_sub_test_ret_drqa_3s_bt_replace_mix')
+  t5.data.MixtureRegistry.add('uq_sub_test_ret_drqa_3s_bt_replace_mix', ['uq_{}_ret_drqa_3s_bt_replace'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)
 
   for domain, splits in EXT_DOMAINS:
     # single-line extractive tasks
