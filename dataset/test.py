@@ -8,7 +8,8 @@ from .utils import IND2CHAR, CHAR2IND, trivia_preprocessor, qa_dataset_fn
 
 TEST_GS = 'gs://neulab-qa/data/test'
 TEST_PREP_GS = 'gs://neulab-qa/data/test_prep'
-
+TEST_PREP_GS_BT = 'gs://neulab-qa/data/test_prep_bt'
+TEST_PREP_GS_BT_REP = 'gs://neulab-qa/data/test_prep_bt_replace'
 
 def one2multi():
   for split in ['dev', 'val', 'test']:

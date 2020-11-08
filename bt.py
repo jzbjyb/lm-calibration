@@ -82,7 +82,7 @@ def qa_dataset_backtranslate(from_file: str,
       prev_qid = qid
 
 
-def bt(from_dir, to_dir, domains: List[Tuple[str, List[str]]], format: str='tsv', **kwargs):
+def bt(from_dir, to_dir, domains: List[Tuple[str, Tuple]], format: str='tsv', restricted_splits=None, **kwargs):
   en2de = torch.hub.load('pytorch/fairseq', 'transformer.wmt19.en-de.single_model', tokenizer='moses', bpe='fastbpe')
   en2de.cuda()
   print('loaded en2de')
@@ -91,13 +91,14 @@ def bt(from_dir, to_dir, domains: List[Tuple[str, List[str]]], format: str='tsv'
   print('loaded de2en')
   for domain, splits in domains:
     for split in splits:
-      if split != 'dev':
+      if restricted_splits is not None and split not in restricted_splits:
         continue
       in_fname = os.path.join(from_dir, domain, split + '.' + format)
       out_fname = os.path.join(to_dir, domain, split + '.' + format)
       print('{} -> {}'.format(in_fname, out_fname))
       qa_dataset_backtranslate(in_fname, out_fname, trans1=en2de, trans2=de2en, **kwargs)
-      break
 
 
-bt('data/unifiedqa', 'data/unifiedqa_bt', SUB_TEST_DOMAINS, bt_count=4, out_count=4)
+bt('data/unifiedqa', 'data/unifiedqa_bt', SUB_TEST_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
+bt('data/unifiedqa', 'data/unifiedqa_bt', list(set(TEST_DOMAINS) - set(SUB_TEST_DOMAINS)), bt_count=4, out_count=4, restricted_splits={'dev'})
+bt('data/test_prep', 'data/test_prep_bt', [('', ('test',))], bt_count=4, out_count=4, restricted_splits={'test'})

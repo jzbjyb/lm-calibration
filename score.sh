@@ -1,18 +1,30 @@
 #!/usr/bin/env bash
 
-neg_method=$1
+tpu_name=$1  # default-dgdw2, jzb
+
+# model parameters
 output=$2
-model_dir=$3  # gs://neulab-qa/unifiedqa/models/3B, gs://neulab-qa/t5-data/pretrained_models/3B
-step=$4  # 1100500
-mix=$5
-split=$6
+model_type=$3  # 3B, 11B
+model_dir=$4  # unifiedqa/models/3B, t5-data/pretrained_models/3B
+model_dir=gs://neulab-qa/${model_dir}
+step=$5  # 1100500
+
+# dataset parameters
+mix=$6
+split=$7
+neg_method=weight
 ret_method='q-append'
 ret_ind=0
 
-tpu_name=jzb  # default-dgdw2
-gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
+gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/${model_type}
 model_parallelism=8
-tpb=262144  # 32768
+inp_len=512
+tgt_len=128
+if [[ $model_type == '3B' ]]; then
+    tpb=262144
+elif [[ $model_type == '11B' ]]; then
+    tpb=65536
+fi
 
 mkdir -p $(dirname "${output}")
 
@@ -31,6 +43,7 @@ mkdir -p $(dirname "${output}")
     --gin_param="utils.tpu_mesh_shape.model_parallelism = ${model_parallelism}" \
     --gin_param="utils.tpu_mesh_shape.tpu_topology = '${TPU_SIZE}'" \
     --gin_param="utils.run.eval_checkpoint_step = ${step}" \
+    --gin_param="utils.run.sequence_length = {'inputs': ${inp_len}, 'targets': ${tgt_len}}" \
     --gin_param="mesh_eval_dataset_fn.num_eval_examples = None" \
     --gin_param="build.neg_method = '${neg_method}'" \
     --gin_param="build.ret_method = '${ret_method}'" \
