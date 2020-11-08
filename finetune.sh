@@ -21,8 +21,8 @@ if [[ $format == 'mc' ]]; then
         tpb=16384  # 128 * 8 * 16
         train_steps=1105000
     elif [[ $from_model == '11B' ]]; then
-        tpb=4096  # 128 * 8 * 4
-        train_steps=1120000
+        tpb=3072  # 128 * 8 * 3
+        train_steps=1125000
     fi
 elif [[ $format == 'ext' ]]; then
     num_sep=5
@@ -32,8 +32,8 @@ elif [[ $format == 'ext' ]]; then
         tpb=20480  # 128 * 5 * 32
         train_steps=1105000
     elif [[ $from_model == '11B' ]]; then
-        tpb=5120  # 128 * 5 * 8
-        train_steps=1120000
+        tpb=3200  # 128 * 5 * 5
+        train_steps=1125000
     fi
 fi
 
