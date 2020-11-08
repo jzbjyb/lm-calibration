@@ -1,22 +1,49 @@
 #!/usr/bin/env bash
 
-neg_method=$1
-output=$2
-train_steps=$3  # 1105000
-loss=$4
+tpu_name=$1	# default-dgdw2, jzb
 
-tpu_name=jzb	# default-dgdw2
-mix=uq_ext_decode_train_ol_ans_no_mix
-split=dev
-num_sep=5
-tgt_len=2560
-gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
-#from_model_dir=gs://neulab-qa/t5-data/pretrained_models/small/model.ckpt-1000000
-#to_model_dir=gs://neulab-qa/t5-data/pretrained_models/small_ft
-from_model=gs://neulab-qa/unifiedqa/models/3B/model.ckpt-1100500
-to_model_dir=gs://neulab-qa/unifiedqa/models/${output}
+# model parameters
+from_model=$2  # 3B, 11B
+to_model=$3
+loss=$4
+neg_method=weight
+
+# dataset parameters
+mix=$5
+split=$6
+format=$7
+
+if [[ $format == 'mc' ]]; then
+    num_sep=8
+    inp_len=512
+    tgt_len=1024  # 128 * 8
+    if [[ $from_model == '3B' ]]; then
+        tpb=16384  # 128 * 8 * 16
+        train_steps=1105000
+    elif [[ $from_model == '11B' ]]; then
+        tpb=4096  # 128 * 8 * 4
+        train_steps=1120000
+    fi
+elif [[ $format == 'ext' ]]; then
+    num_sep=5
+    inp_len=512
+    tgt_len=640  # 128 * 5
+    if [[ $from_model == '3B' ]]; then
+        tpb=20480  # 128 * 5 * 32
+        train_steps=1105000
+    elif [[ $from_model == '11B' ]]; then
+        tpb=5120  # 128 * 5 * 8
+        train_steps=1120000
+    fi
+fi
+
+echo $tpu_name $from_model $to_model $loss $mix $split $format
+echo 'num sep' $num_sep 'inp len' $inp_len 'tgt len' $tgt_len 'token per batch' $tpb 'step' $train_steps
+
+gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/${from_model}
+from_model=gs://neulab-qa/unifiedqa/models/${from_model}/model.ckpt-1100500
+to_model_dir=gs://neulab-qa/unifiedqa/ft_models/${to_model}
 model_parallelism=8
-tpb=15360  # 16384 4096, 15360
 
 ./run_test.py \
     --tpu="${tpu_name}" \
@@ -34,7 +61,7 @@ tpb=15360  # 16384 4096, 15360
     --gin_param="run.train_steps = ${train_steps}" \
     --gin_param="build.neg_method = '${neg_method}'" \
     --gin_param="run.batch_size = ('tokens_per_batch', ${tpb})" \
-    --gin_param="utils.run.sequence_length = {'inputs': 512, 'targets': ${tgt_len}}" \
+    --gin_param="utils.run.sequence_length = {'inputs': ${inp_len}, 'targets': ${tgt_len}}" \
     --gin_param="encoder/Unitransformer.z_loss = 0.0" \
     --gin_param="decoder/Unitransformer.z_loss = 0.0" \
     --gin_param="Bitransformer.num_sep = ${num_sep}" \

@@ -1,16 +1,27 @@
 #!/usr/bin/env bash
 
-model_dir=$1  # gs://neulab-qa/unifiedqa/models/3B, gs://neulab-qa/t5-data/pretrained_models/3B
-step=$2  # 1100500
+tpu_name=$1  # default-dgdw2, jzb
+
+# model parameter
+model_type=$2  # 3B, 11B
+model_dir=gs://neulab-qa/unifiedqa/models/${model_type}
+step=1100500
 output=$3
+
+# dataset parameter
 mix=$4
 split=$5
 beam_size=20
+max_decode_length=128
 
-tpu_name=default-dgdw2  # default-dgdw2
-gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/3B
+if [[ $model_type == '3B' ]]; then
+    tpb=16384
+elif [[ $model_type == '11B' ]]; then
+    tpb=4096
+fi
+
+gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/${model_type}
 model_parallelism=8
-tpb=16384  # 32768
 
 mkdir -p $(dirname "${output}")
 
@@ -31,5 +42,5 @@ mkdir -p $(dirname "${output}")
     --gin_param="utils.tpu_mesh_shape.tpu_topology = '${TPU_SIZE}'" \
     --gin_param="infer_checkpoint_step = ${step}" \
     --gin_param="run.batch_size = ('tokens_per_batch', ${tpb})" \
-    --gin_param="Bitransformer.decode.max_decode_length = 128" \
+    --gin_param="Bitransformer.decode.max_decode_length = ${max_decode_length}" \
     --gin_param="Bitransformer.decode.beam_size = ${beam_size}"
