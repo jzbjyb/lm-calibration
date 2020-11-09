@@ -247,7 +247,7 @@ def analysis(data, output, topk=100):
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='calibration computation')
-  parser.add_argument('--method', type=str, help='metric method', default='micro', choices=['micro', 'macro'])
+  parser.add_argument('--method', type=str, help='metric method', default='macro', choices=['micro', 'macro'])
   parser.add_argument('--mix', type=str, help='mixture', default='uq_sub_test_mix')
   parser.add_argument('--split', type=str, help='split', default='dev')
   parser.add_argument('--score', type=str, help='score file', nargs='+')
