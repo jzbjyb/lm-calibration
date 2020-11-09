@@ -4,9 +4,27 @@ tpu=$1
 
 # mc
 
-output_root=output/exp/uq_test/dev
+for task in uq_sub_test; do
+    for model in 3B; do
+        if [[ $task == 'uq_sub_test' ]]; then
+            output_root=output/exp/uq_sub_test/dev
+            mix=uq_sub_test_mix
+            split=dev
+        elif [[ $task == 'uq_test' ]]; then
+            output_root=output/exp/uq_test/dev
+            mix=uq_test_mix
+            split=dev
+        fi
 
-./score.sh $tpu ${output_root}/3B/uq_ft_softmax.txt 3B unifiedqa/ft_models/3B_softmax 1105000 uq_test_mix dev &> nohup.out
-./score.sh $tpu ${output_root}/3B/uq_ft_margin.txt 3B unifiedqa/ft_models/3B_margin 1105000 uq_test_mix dev &> nohup.out
-./score.sh $tpu ${output_root}/3B/uq.txt 3B unifiedqa/models/3B 1100500 uq_test_mix dev &> nohup.out
-./score.sh $tpu ${output_root}/3B/t5.txt 3B t5-data/pretrained_models/3B 1000000 uq_test_mix dev &> nohup.out
+        if [[ $model == '3B' ]]; then
+            step=1103000
+        elif [[ $model == '11B' ]]; then
+            step=1115000
+        fi
+
+        ./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_softmax $step $mix $split &> nohup.out
+        ./score.sh $tpu ${output_root}/${model}/uq_ft_margin.txt ${model} unifiedqa/ft_models/${model}_margin $step $mix $split &> nohup.out
+        ./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} $step $mix $split &> nohup.out
+        ./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} $step $mix $split &> nohup.out
+    done
+done

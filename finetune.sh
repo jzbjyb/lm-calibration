@@ -19,10 +19,10 @@ if [[ $format == 'mc' ]]; then
     tgt_len=1024  # 128 * 8
     if [[ $from_model == '3B' ]]; then
         tpb=16384  # 128 * 8 * 16
-        train_steps=1105000
+        train_steps=1103000
     elif [[ $from_model == '11B' ]]; then
         tpb=3072  # 128 * 8 * 3
-        train_steps=1125000
+        train_steps=1115000
     fi
 elif [[ $format == 'ext' ]]; then
     num_sep=5
@@ -30,10 +30,10 @@ elif [[ $format == 'ext' ]]; then
     tgt_len=640  # 128 * 5
     if [[ $from_model == '3B' ]]; then
         tpb=20480  # 128 * 5 * 32
-        train_steps=1105000
+        train_steps=1103000
     elif [[ $from_model == '11B' ]]; then
         tpb=3200  # 128 * 5 * 5
-        train_steps=1125000
+        train_steps=1115000
     fi
 fi
 

@@ -95,7 +95,7 @@ def bt(from_dir, to_dir, domains: List[Tuple[str, Tuple]], format: str='tsv', re
         continue
       in_fname = os.path.join(from_dir, domain, split + '.' + format)
       out_fname = os.path.join(to_dir, domain, split + '.' + format)
-      print('{} -> {}'.format(in_fname, out_fname))
+      print('{} -> {}'.format(in_fname, out_fname), flush=True)
       qa_dataset_backtranslate(in_fname, out_fname, trans1=en2de, trans2=de2en, **kwargs)
 
 
