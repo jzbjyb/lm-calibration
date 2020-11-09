@@ -26,9 +26,9 @@ UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
                  ('openbookqa', ('train', 'dev', 'test')),
-                 ('qasc', ('train', 'dev')),
+                 ('qasc', ('train', 'dev', 'test')),
                  ('winogrande_l', ('train', 'dev')),
-                 ('commonsenseqa', ('train', 'dev'))]
+                 ('commonsenseqa', ('train', 'dev', 'test'))]
 TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
                 ('ai2_science_middle', ('train', 'dev', 'test')),
                 ('winogrande_m', ('train', 'dev')),
@@ -45,9 +45,9 @@ SUB_TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
 CLEAN_TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                        ('ai2_science_elementary', ('train', 'dev', 'test')),
                        ('openbookqa', ('train', 'dev', 'test')),
-                       ('qasc', ('train', 'dev')),
+                       ('qasc', ('train', 'dev', 'test')),
                        ('winogrande_l', ('train', 'dev')),
-                       ('commonsenseqa', ('train', 'dev')),
+                       ('commonsenseqa', ('train', 'dev', 'test')),
                        ('physical_iqa', ('train', 'dev', 'test'))]
 CLEAN_TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
                       ('ai2_science_middle', ('train', 'dev', 'test')),

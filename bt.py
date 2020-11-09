@@ -8,9 +8,9 @@ import torch
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
                  ('openbookqa', ('train', 'dev', 'test')),
-                 ('qasc', ('train', 'dev')),
+                 ('qasc', ('train', 'dev', 'test')),
                  ('winogrande_l', ('train', 'dev')),
-                 ('commonsenseqa', ('train', 'dev'))]
+                 ('commonsenseqa', ('train', 'dev', 'test'))]
 TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
                 ('ai2_science_middle', ('train', 'dev', 'test')),
                 ('winogrande_m', ('train', 'dev')),

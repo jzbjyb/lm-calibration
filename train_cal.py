@@ -1,9 +1,7 @@
-from typing import List, Dict
+from typing import List
 import argparse
-from tqdm import tqdm
 import random
 import os
-import t5
 import torch
 import torch.nn as nn
 import numpy as np
@@ -68,14 +66,18 @@ class TempCal(nn.Module):
 def train_temp(args, data):
   temp_cal = TempCal()
   temp_cal.train()
-  optimizer = torch.optim.Adam(temp_cal.parameters(), lr=1e-1)
+  optimizer = torch.optim.Adam(temp_cal.parameters(), lr=1e-3)
 
   scores_li = data['log_prob']
   targets_li = data['target']
 
   batch_size = 256
-  epoch = 10
+  epoch = 300
+  early_stop = 30
+  es = 0
   num_batch = int(np.ceil(len(scores_li) / batch_size))
+  min_loss = 1e10
+  min_temp = None
   for e in range(epoch):
     loss_li = []
     perm = np.random.permutation(len(scores_li))
@@ -89,7 +91,18 @@ def train_temp(args, data):
       loss.backward()
       optimizer.step()
       loss_li.append(loss.detach().cpu().numpy())
-    print(np.mean(loss_li), temp_cal.temp)
+    loss = np.mean(loss_li)
+    if loss < min_loss:
+      min_loss = loss
+      min_temp = temp_cal.temp.detach().cpu().numpy()
+      es = 0
+    else:
+      es += 1
+      if es >= early_stop:
+        print('early stop')
+        break
+    print(e, loss, temp_cal.temp)
+  print('final loss {}, final temp {}'.format(min_loss, min_temp))
 
 
 def train_xgb(args, data):
