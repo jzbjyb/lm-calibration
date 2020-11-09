@@ -42,6 +42,18 @@ SUB_TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
                     ('winogrande_m', ('train', 'dev')),
                     ('winogrande_s', ('train', 'dev')),
                     ('mctest_corrected_the_separator', ('train', 'dev'))]
+CLEAN_TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
+                       ('ai2_science_elementary', ('train', 'dev', 'test')),
+                       ('openbookqa', ('train', 'dev', 'test')),
+                       ('qasc', ('train', 'dev')),
+                       ('winogrande_l', ('train', 'dev')),
+                       ('commonsenseqa', ('train', 'dev')),
+                       ('physical_iqa', ('train', 'dev', 'test'))]
+CLEAN_TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
+                      ('ai2_science_middle', ('train', 'dev', 'test')),
+                      ('mctest_corrected_the_separator', ('train', 'dev')),
+                      ('social_iqa', ('train', 'dev')),
+                      ('race_string', ('train', 'dev', 'test'))]
 DOMAINS = TRAIN_DOMAINS + TEST_DOMAINS
 
 EXT_DOMAINS = [('squad1_1', ('train', 'dev')),
@@ -222,6 +234,10 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
   t5.data.MixtureRegistry.add('uq_train_inp_mix', ['uq_{}_inp'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_test_mix')
   t5.data.MixtureRegistry.add('uq_test_mix', ['uq_{}'.format(domain) for domain, _ in TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_clean_train_mix')
+  t5.data.MixtureRegistry.add('uq_clean_train_mix', ['uq_{}'.format(domain) for domain, _ in CLEAN_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_clean_test_mix')
+  t5.data.MixtureRegistry.add('uq_clean_test_mix', ['uq_{}'.format(domain) for domain, _ in CLEAN_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_sub_test_mix')
   t5.data.MixtureRegistry.add('uq_sub_test_mix', ['uq_{}'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_sub_test_inp_mix')
@@ -238,6 +254,8 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
 
   t5.data.MixtureRegistry.remove('uq_train_ol_mix')
   t5.data.MixtureRegistry.add('uq_train_ol_mix', ['uq_{}_ol'.format(domain) for domain, _ in TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_clean_train_ol_mix')
+  t5.data.MixtureRegistry.add('uq_clean_train_ol_mix', ['uq_{}_ol'.format(domain) for domain, _ in CLEAN_TRAIN_DOMAINS], default_rate=1.0)
 
   t5.data.MixtureRegistry.remove('uq_sub_test_ret_drqa_3s_mix')
   t5.data.MixtureRegistry.add('uq_sub_test_ret_drqa_3s_mix', ['uq_{}_ret_drqa_3s'.format(domain) for domain, _ in SUB_TEST_DOMAINS], default_rate=1.0)

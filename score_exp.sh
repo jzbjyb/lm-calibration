@@ -4,7 +4,7 @@ tpu=$1
 
 # mc
 
-for task in uq_sub_test; do
+for task in uq_clean_test; do
     for model in 3B; do
         if [[ $task == 'uq_sub_test' ]]; then
             output_root=output/exp/uq_sub_test/dev
@@ -13,6 +13,10 @@ for task in uq_sub_test; do
         elif [[ $task == 'uq_test' ]]; then
             output_root=output/exp/uq_test/dev
             mix=uq_test_mix
+            split=dev
+        elif [[ $task == 'uq_clean_test' ]]; then
+            output_root=output/exp/uq_clean_test/dev
+            mix=uq_clean_test_mix
             split=dev
         fi
 
