@@ -387,7 +387,7 @@ if __name__ == '__main__':
   #multi2one_all(UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, EXT_DOMAINS, num_sep=5)
 
   if task == 'bt':
-    replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, TEST_DOMAINS)
+    replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, DOMAINS)
     replace_in_ques_bt(TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, MT_TEST_DOMAINS)
 
   if task == 'ret':
@@ -398,7 +398,7 @@ if __name__ == '__main__':
 
   if task == 'combine_ret_bt':
     combine_ret_bt(UNIFIEDQA_PREP_GS_RET_DRQA_3S, UNIFIEDQA_PREP_GS_BT_REP,
-                   UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP, TEST_DOMAINS,
+                   UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP, DOMAINS,
                    splits_restrict={'dev'}, num_bt=5)
     combine_ret_bt(TEST_PREP_GS_RET_DRQA_3S, TEST_PREP_GS_BT_REP,
                    TEST_PREP_GS_RET_DRQA_3S_BT_REP, MT_TEST_DOMAINS,
