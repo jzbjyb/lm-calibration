@@ -4,7 +4,7 @@ import functools
 import tensorflow as tf
 import t5
 import gin
-from .utils import IND2CHAR, CHAR2IND, trivia_preprocessor, qa_dataset_fn
+from .utils import IND2CHAR, CHAR2IND, trivia_preprocessor, qa_dataset_fn, qa_dataset_onlyinput_fn, qa_dataset_fn_ret
 
 TEST_GS = 'gs://neulab-qa/data/test'
 TEST_PREP_GS = 'gs://neulab-qa/data/test_prep'
@@ -44,15 +44,55 @@ def one2multi():
 
 
 @gin.configurable
-def build_test(neg_method: str='indicator'):
+def build_test(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-prepend'):
   t5.data.TaskRegistry.add(
     'test',
     dataset_fn=functools.partial(
         qa_dataset_fn, bucket=TEST_PREP_GS, use_neg=True, neg_method=neg_method),
-    splits=['train', 'dev', 'val', 'test'],
+    splits=DOMAINS[0][1],
+    text_preprocessor=[trivia_preprocessor],
+    postprocess_fn=t5.data.postprocessors.lower_text,
+    metric_fns=[t5.evaluation.metrics.accuracy])
+  t5.data.TaskRegistry.add(
+    'test_inp',
+    dataset_fn=functools.partial(
+      qa_dataset_onlyinput_fn, bucket=TEST_PREP_GS),
+    splits=DOMAINS[0][1],
+    text_preprocessor=[trivia_preprocessor],
+    postprocess_fn=t5.data.postprocessors.lower_text,
+    metric_fns=[t5.evaluation.metrics.accuracy])
+  t5.data.TaskRegistry.add(
+    'test_ret_drqa_3s',
+    dataset_fn=functools.partial(
+      qa_dataset_fn_ret, bucket=TEST_PREP_GS_RET_DRQA_3S, ret_ind=ret_ind, ret_method=ret_method),
+    splits=DOMAINS[0][1],
+    text_preprocessor=[trivia_preprocessor],
+    postprocess_fn=t5.data.postprocessors.lower_text,
+    metric_fns=[t5.evaluation.metrics.accuracy])
+  t5.data.TaskRegistry.add(
+    'test_bt',
+    dataset_fn=functools.partial(
+      qa_dataset_fn, bucket=TEST_PREP_GS_BT, use_neg=True, neg_method=neg_method),
+    splits=DOMAINS[0][1],
+    text_preprocessor=[trivia_preprocessor],
+    postprocess_fn=t5.data.postprocessors.lower_text,
+    metric_fns=[t5.evaluation.metrics.accuracy])
+  t5.data.TaskRegistry.add(
+    'test_bt_replace',
+    dataset_fn=functools.partial(
+      qa_dataset_fn, bucket=TEST_PREP_GS_BT_REP, use_neg=True, neg_method=neg_method),
+    splits=DOMAINS[0][1],
     text_preprocessor=[trivia_preprocessor],
     postprocess_fn=t5.data.postprocessors.lower_text,
     metric_fns=[t5.evaluation.metrics.accuracy])
 
   t5.data.MixtureRegistry.remove('test_mix')
   t5.data.MixtureRegistry.add('test_mix', ['test'], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('test_inp_mix')
+  t5.data.MixtureRegistry.add('test_inp_mix', ['test_inp'], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('test_ret_drqa_3s_mix')
+  t5.data.MixtureRegistry.add('test_ret_drqa_3s_mix', ['test_ret_drqa_3s'], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('test_bt_mix')
+  t5.data.MixtureRegistry.add('test_bt_mix', ['test_bt'], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('test_bt_replace_mix')
+  t5.data.MixtureRegistry.add('test_bt_replace_mix', ['test_bt_replace'], default_rate=1.0)

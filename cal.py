@@ -28,6 +28,7 @@ def compute_acc(acc_li: List[float], task_li: List[str], method: str='micro'):
   for acc, task in zip(acc_li, task_li):
     if prev_task is not None and task != prev_task:
       overall.append(np.mean(current))
+      print('task acc {}: {}'.format(prev_task, overall[-1]))
       current = []
     current.append(acc)
     if method == 'macro':
@@ -38,6 +39,7 @@ def compute_acc(acc_li: List[float], task_li: List[str], method: str='micro'):
       raise NotImplementedError
   if len(current) > 0:
     overall.append(np.mean(current))
+    print('task acc {}: {}'.format(prev_task, overall[-1]))
   return np.mean(overall)
 
 
@@ -83,7 +85,7 @@ def compute_ece(acc_li: List[float], conf_li: List[float], task_li: List[str], m
   for acc, conf, task in zip(acc_li, conf_li, task_li):
     if prev_task is not None and task != prev_task:
       overall.append(get_ece(current_acc_li, current_conf_li))
-      print('task {}: {}'.format(prev_task, overall[-1]))
+      print('task ece {}: {}'.format(prev_task, overall[-1]))
       current_acc_li = []
       current_conf_li = []
     current_acc_li.append(acc)
@@ -96,7 +98,7 @@ def compute_ece(acc_li: List[float], conf_li: List[float], task_li: List[str], m
       raise NotImplementedError
   if len(current_acc_li) > 0:
     overall.append(get_ece(current_acc_li, current_conf_li))
-    print('task {}: {}'.format(prev_task, overall[-1]))
+    print('task ece {}: {}'.format(prev_task, overall[-1]))
   return np.mean(overall)
 
 

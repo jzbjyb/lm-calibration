@@ -226,26 +226,39 @@ def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
   print('total count {}'.format(count))
 
 
-def replace_in_ques_bt(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', split: str='dev'):
-  for domain, _ in domains:
-    from_file = os.path.join(from_bk, domain, split + '.' + format)
-    to_file = os.path.join(to_bk, domain, split + '.' + format)
-    print('{} -> {}'.format(from_file, to_file))
-    prev_id = None
-    prev_answer = None
-    with tf.io.gfile.GFile(from_file, 'r') as fin, tf.io.gfile.GFile(to_file, 'w') as fout:
-      for lid, line in enumerate(fin):
-        id, question, answer, correct = line.strip().split('\t')
-        ind, choice = int(id.split('-')[0]), int(id.split('-')[1])
-        if id != prev_id:
-          prev_answer = answer
-          prev_id = id
-        choice = IND2CHAR[choice]
-        start = question.find('({})'.format(choice))
-        start = question.find(prev_answer, start)
-        assert start >= 0
-        question = question[:start] + answer + question[start + len(prev_answer):]
-        fout.write('{}\t{}\t{}\t{}\n'.format(id, question, answer, correct))
+def replace_in_ques_bt(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', splits_restrict: Set[str]=None):
+  for domain, splits in domains:
+    for split in splits:
+      if splits_restrict is not None and split not in splits_restrict:
+        continue
+      from_file = os.path.join(from_bk, domain, split + '.' + format)
+      to_file = os.path.join(to_bk, domain, split + '.' + format)
+      print('{} -> {}'.format(from_file, to_file))
+      prev_id = None
+      prev_answer = None
+      ab_count = 0
+      with tf.io.gfile.GFile(from_file, 'r') as fin, tf.io.gfile.GFile(to_file, 'w') as fout:
+        for lid, line in enumerate(fin):
+          id, question, answer, correct = line.strip().split('\t')
+          ids = id.split('-')[-2:]
+          ind, choice = int(ids[0]), int(ids[1])
+          if id != prev_id:
+            prev_answer = answer
+            prev_id = id
+          start = question.find('({})'.format(IND2CHAR[choice]))
+          start = question.find(prev_answer, start)
+          if start < 0:
+            start = question.find('({})'.format(IND2CHAR[choice]))
+            end = question.find('({})'.format(IND2CHAR[choice + 1]))
+            if end < 0:
+              end = len(question)
+            assert start >= 0 and end >= 0
+            question = question[:start] + '({}) {} '.format(IND2CHAR[choice], answer) + question[end:]
+            ab_count += 1
+          else:
+            question = question[:start] + answer + question[start + len(prev_answer):]
+          fout.write('{}\t{}\t{}\t{}\n'.format(id, question, answer, correct))
+        print('abnormal count {}'.format(ab_count))
 
 
 def retrieve_aug(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', splits_restrict: Set[str]={'dev'}, topk=5):
@@ -353,6 +366,31 @@ def combine_ret_bt(from_bk_ret, from_bk_bt, to_bk, domains: List[Tuple[str, List
             nb -= 1
 
 
+def fix_test(fom_bk: str, to_bk: str, domains: List[Tuple[str, List]], format: str='tsv', num_bt: int=0):
+  for domain, splits in domains:
+    for split in splits:
+      in_fname = os.path.join(fom_bk, domain, split + '.' + format)
+      out_fname = os.path.join(to_bk, domain, split + '.' + format)
+      print(in_fname, out_fname)
+      with tf.io.gfile.GFile(in_fname, 'r') as fin, tf.io.gfile.GFile(out_fname, 'w') as fout:
+        prev_inp = None
+        qid = 0
+        aid = 0
+        for l in fin:
+          ls = l.rstrip('\n').split('\t')
+          ind = ls[0].split('-')[0]
+          inp = ls[1]
+          if prev_inp is not None and inp != prev_inp:
+            qid += 1
+            aid = 0
+          ind = '{}-{}'.format(ind, qid)
+          if num_bt:
+            ind = '{}-{}'.format(ind, aid // num_bt)
+          prev_inp = inp
+          aid += 1
+          fout.write('\t'.join([ind, inp] + ls[2:]) + '\n')
+
+
 if __name__ == '__main__':
   task = sys.argv[1]
 
@@ -382,13 +420,11 @@ if __name__ == '__main__':
   #                               'output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000',
   #                               'output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000'])
 
-  #replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, SUB_TEST_DOMAINS)
-
   #multi2one_all(UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, EXT_DOMAINS, num_sep=5)
 
   if task == 'bt':
-    replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, DOMAINS)
-    replace_in_ques_bt(TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, MT_TEST_DOMAINS)
+    replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, DOMAINS, splits_restrict={'dev'})
+    replace_in_ques_bt(TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, MT_TEST_DOMAINS, splits_restrict={'test'})
 
   if task == 'ret':
     retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA, DOMAINS, splits_restrict={'train', 'dev', 'test'})
@@ -403,6 +439,11 @@ if __name__ == '__main__':
     combine_ret_bt(TEST_PREP_GS_RET_DRQA_3S, TEST_PREP_GS_BT_REP,
                    TEST_PREP_GS_RET_DRQA_3S_BT_REP, MT_TEST_DOMAINS,
                    splits_restrict={'test'}, num_bt=5)
+
+  if task == 'fix_test':
+    fix_test(TEST_PREP_GS + '.bak', TEST_PREP_GS, MT_TEST_DOMAINS)
+    fix_test(TEST_PREP_GS_RET_DRQA + '.bak', TEST_PREP_GS_RET_DRQA, MT_TEST_DOMAINS)
+    fix_test(TEST_PREP_GS_BT + '.bak', TEST_PREP_GS_BT, MT_TEST_DOMAINS, num_bt=5)
 
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_OL_ANS, EXT_DOMAINS, multiline=False)
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_ANS, EXT_DOMAINS, multiline=True)
