@@ -990,7 +990,8 @@ class Mixture(DatasetProviderBase):
 
   def get_dataset_in_order(self, sequence_length, split, use_cached=False, shuffle=True):
     for task in self.tasks:
-      yield from task.get_dataset(sequence_length, split=split, use_cached=use_cached, shuffle=shuffle)
+      for ex in task.get_dataset(sequence_length, split=split, use_cached=use_cached, shuffle=shuffle):
+        yield task.name, ex
 
   def get_dataset(
       self,

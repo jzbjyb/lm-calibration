@@ -195,7 +195,7 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
     for count_ind, l in enumerate(fin):
       # read dataset
       try:
-        ex = next(ds)
+        task, ex = next(ds)
       except StopIteration:
         break
       # read other features
@@ -225,7 +225,8 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
       if prev_inp is not None and prev_inp != inp:
         var = np.var(np.exp(np.array(scores)))
         score_var = [var] * len(scores)
-        yield_result = {'log_prob': scores, 'prob_var': score_var,
+        yield_result = {'task': task,
+                        'log_prob': scores, 'prob_var': score_var,
                         'input_len': input_len, 'target_len': target_len,
                         'target': targets,
                         'input_tokens': input_tokens, 'target_tokens': target_tokens,
@@ -251,7 +252,8 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
     if len(scores) > 0:
       var = np.var(np.exp(np.array(scores)))
       score_var = [var] * len(scores)
-      yield_result = {'log_prob': scores, 'prob_var': score_var,
+      yield_result = {'task': task,
+                      'log_prob': scores, 'prob_var': score_var,
                       'input_len': input_len, 'target_len': target_len,
                       'target': targets,
                       'input_tokens': input_tokens, 'target_tokens': target_tokens,

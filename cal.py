@@ -21,11 +21,92 @@ def choose_score(scores_li: List[List[float]], weights: List[float]):
   return scores_li[0]
 
 
+def compute_acc(acc_li: List[float], task_li: List[str], method: str='micro'):
+  overall = []
+  current = []
+  prev_task = None
+  for acc, task in zip(acc_li, task_li):
+    if prev_task is not None and task != prev_task:
+      overall.append(np.mean(current))
+      current = []
+    current.append(acc)
+    if method == 'macro':
+      prev_task = task
+    elif method == 'micro':
+      pass
+    else:
+      raise NotImplementedError
+  if len(current) > 0:
+    overall.append(np.mean(current))
+  return np.mean(overall)
+
+
+def get_ece(acc_li: List[float], conf_li: List[float], plot: bool=False):
+  num_bins = 20
+  margin = 1 / num_bins
+  xind = [margin * (i + 0.5) for i in range(num_bins)]
+
+  bins = [[] for _ in range(num_bins)]
+  for acc, conf in zip(acc_li, conf_li):
+    assert conf >= 0 and conf <= 1, 'confidence {} out of range'.format(conf)
+    ind = min(int(conf / margin), num_bins - 1)
+    bins[ind].append((conf, acc))
+
+  eces = [(len(bin), np.mean(list(map(itemgetter(0), bin))), np.mean(list(map(itemgetter(1), bin)))) for bin in bins]
+  ece, total = 0, 0
+  for c, conf, acc in eces:
+    if c <= 0:
+      continue
+    ece += c * np.abs(conf - acc)
+    total += c
+  ece /= total
+
+  if plot:
+    plt.bar(xind, [np.mean(list(map(itemgetter(1), bin))) for bin in bins], margin)
+    plt.title('ece {:.3f}'.format(ece))
+    plt.ylabel('accuracy')
+    plt.xlabel('confidence')
+    plt.ylim(0.0, 1.0)
+    plt.xlim(0.0, 1.0)
+    plt.plot([0, 1], color='red')
+    plt.savefig('test.png')
+    plt.close()
+
+  return ece
+
+
+def compute_ece(acc_li: List[float], conf_li: List[float], task_li: List[str], method: str='micro'):
+  overall = []
+  current_acc_li = []
+  current_conf_li = []
+  prev_task = None
+  for acc, conf, task in zip(acc_li, conf_li, task_li):
+    if prev_task is not None and task != prev_task:
+      overall.append(get_ece(current_acc_li, current_conf_li))
+      print(prev_task, overall[-1])
+      current_acc_li = []
+      current_conf_li = []
+    current_acc_li.append(acc)
+    current_conf_li.append(conf)
+    if method == 'macro':
+      prev_task = task
+    elif method == 'micro':
+      pass
+    else:
+      raise NotImplementedError
+  if len(current_acc_li) > 0:
+    overall.append(get_ece(current_acc_li, current_conf_li))
+    print(task, overall[-1])
+  return np.mean(overall)
+
+
 def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
-        temp: float=1.0, norm: str = 'softmax', xgb_model_path=None, ana: bool=False, **kwargs):
+        temp: float=1.0, norm: str = 'softmax', xgb_model_path=None, ana: bool=False, method: str='micro', **kwargs):
   real_acc_li = []
+  real_task_li = []
   acc_li = []
   conf_li = []
+  task_li = []
 
   input_len_li = []
   target_len_li = []
@@ -48,6 +129,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
       break
 
     sample = samples[0]
+    task = sample['task']
     weights = sample['target']
     scores = choose_score([s['log_prob'] for s in samples], weights)
 
@@ -96,41 +178,15 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
       weight = weight[0]
       acc_li.append(weight == 1)
       conf_li.append(score)
+      task_li.append(task)
     choice = np.argmax(_scores)
     real_acc_li.append(int(_weights[choice][0] == 1))
+    real_task_li.append(task)
 
-  real_acc = np.mean(real_acc_li)
+  real_acc = compute_acc(real_acc_li, real_task_li, method=method)
   print('acc', real_acc)
 
-  num_bins = 20
-  margin = 1 / num_bins
-  xind = [margin * (i + 0.5) for i in range(num_bins)]
-
-  bins = [[] for _ in range(num_bins)]
-  for acc, conf in zip(acc_li, conf_li):
-    assert conf >= 0 and conf <= 1, 'confidence {} out of range'.format(conf)
-    ind = min(int(conf / margin), num_bins - 1)
-    bins[ind].append((conf, acc))
-
-  eces = [(len(bin), np.mean(list(map(itemgetter(0), bin))), np.mean(list(map(itemgetter(1), bin)))) for bin in bins]
-  ece, total = 0, 0
-  for c, conf, acc in eces:
-    if c <= 0:
-      continue
-    ece += c * np.abs(conf - acc)
-    total += c
-  ece /= total
-
-  plt.bar(xind, [np.mean(list(map(itemgetter(1), bin))) for bin in bins], margin)
-  plt.title('acc {:.3f}, ece {:.3f}'.format(real_acc, ece))
-  plt.ylabel('accuracy')
-  plt.xlabel('confidence')
-  plt.ylim(0.0, 1.0)
-  plt.xlim(0.0, 1.0)
-  plt.plot([0, 1], color='red')
-  plt.savefig('test.png')
-  plt.close()
-
+  ece = compute_ece(acc_li, conf_li, task_li, method=method)
   print('ece', ece)
 
   if ana:
@@ -191,6 +247,7 @@ def analysis(data, output, topk=100):
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='calibration computation')
+  parser.add_argument('--method', type=str, help='metric method', default='micro', choices=['micro', 'macro'])
   parser.add_argument('--mix', type=str, help='mixture', default='uq_sub_test_mix')
   parser.add_argument('--split', type=str, help='split', default='dev')
   parser.add_argument('--score', type=str, help='score file', nargs='+')
@@ -205,4 +262,5 @@ if __name__ == '__main__':
   # build tasks and mixtures
   build(neg_method='weight')
 
-  acc(args.mix, args.score, args.split, args.num_bt, args.temp, norm=args.norm, xgb_model_path=args.xgb, ana=args.ana, inp_perp=args.inp_perp)
+  acc(args.mix, args.score, args.split, args.num_bt, args.temp, norm=args.norm, xgb_model_path=args.xgb,
+      ana=args.ana, method=args.method, inp_perp=args.inp_perp)

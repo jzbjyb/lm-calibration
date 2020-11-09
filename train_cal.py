@@ -2,6 +2,7 @@ from typing import List, Dict
 import argparse
 from tqdm import tqdm
 import random
+import os
 import t5
 import torch
 import torch.nn as nn
@@ -98,11 +99,13 @@ def train_xgb(args, data):
   evals = [(dm_train, 'train'), (dm_dev, 'eval')]
   num_round = 100
   bst = xgb.train(param, dm_train, num_round, evals=evals, early_stopping_rounds=5)
+  os.makedirs(os.path.dirname(args.out), exist_ok=True)
   bst.save_model(args.out)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='visulize log prob per tokens')
+  parser.add_argument('--model', type=str, help='model to train', choices=['xgb', 'temp'])
   parser.add_argument('--mix', type=str, help='mixture', default='uq_sub_test_mix')
   parser.add_argument('--split', type=str, help='split', default='dev')
   parser.add_argument('--score', type=str, help='score file')
@@ -116,5 +119,7 @@ if __name__ == '__main__':
   data = read_data(args.score, args.mix, args.split, inp_perp=args.inp_perp)
   print('#examples {}'.format(len(data['target'])))
 
-  #train_temp(args, data)
-  train_xgb(args, data)
+  if args.model == 'temp':
+    train_temp(args, data)
+  elif args.model == 'xgb':
+    train_xgb(args, data)
