@@ -99,6 +99,6 @@ def bt(from_dir, to_dir, domains: List[Tuple[str, Tuple]], format: str='tsv', re
       qa_dataset_backtranslate(in_fname, out_fname, trans1=en2de, trans2=de2en, **kwargs)
 
 
-bt('data/unifiedqa', 'data/unifiedqa_bt', SUB_TEST_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
-bt('data/unifiedqa', 'data/unifiedqa_bt', list(set(TEST_DOMAINS) - set(SUB_TEST_DOMAINS)), bt_count=4, out_count=4, restricted_splits={'dev'})
+bt('data/unifiedqa', 'data/unifiedqa_bt', TRAIN_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
+bt('data/unifiedqa', 'data/unifiedqa_bt', TEST_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
 bt('data/test_prep', 'data/test_prep_bt', [('', ('test',))], bt_count=4, out_count=4, restricted_splits={'test'})
