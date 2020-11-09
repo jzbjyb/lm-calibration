@@ -1,5 +1,6 @@
 from typing import List, Tuple, Dict, Set
 import os
+import sys
 import csv
 from operator import itemgetter
 from collections import defaultdict
@@ -12,11 +13,13 @@ import tensorflow as tf
 from dataset.utils import IND2CHAR, CHAR2IND
 from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_OL, \
   UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP,\
-  DOMAINS, SUB_TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE, UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, \
+  DOMAINS, SUB_TEST_DOMAINS, TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE, UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, \
   UNIFIEDQA_RAW_DECODE_GS_OL_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS_NO, \
   UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO, UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
-from dataset.test import one2multi as one2multi_test
+from dataset.test import one2multi as one2multi_test, TEST_PREP_GS, TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, \
+  TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, TEST_PREP_GS_RET_DRQA_3S_BT_REP
+from dataset.test import DOMAINS as MT_TEST_DOMAINS
 
 SEED = 2021
 random.seed(SEED)
@@ -262,7 +265,7 @@ def retrieve_aug(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: s
         continue
       in_fname = os.path.join(from_bk, domain, split + '.' + format)
       out_fname = os.path.join(to_bk, domain, split + '.' + format)
-      print('{} -> {}'.format(in_fname, out_fname))
+      print('{} -> {}'.format(in_fname, out_fname), flush=True)
       with tf.io.gfile.GFile(in_fname, 'r') as fin, tf.io.gfile.GFile(out_fname, 'w') as fout:
         lid2data: List[Tuple] = []
         query_data: List[Dict] = []
@@ -273,7 +276,7 @@ def retrieve_aug(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: s
           query_data.append({'query': ans, 'id': '{}.{}'.format(i, 'a')})
         ranker.fed_data(query_data, topk)
         all_doc_id, all_doc_scores, all_query_id, provenance = ranker.run()
-        for i, (lid, ques, ans, correct) in tqdm(enumerate(lid2data)):
+        for i, (lid, ques, ans, correct) in tqdm(enumerate(lid2data), desc='collect retrieved wiki articles'):
           qrs = provenance['{}.{}'.format(i, 'q')]
           ars = provenance['{}.{}'.format(i, 'a')]
           qrs = [get_sent(ks.get_page_by_id(int(r['wikipedia_id']))) for r in qrs]
@@ -288,10 +291,16 @@ def retrieve_aug(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: s
 
 def truncate_ret_sent(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', num_sent: int=3):
   empty = 0
+  def truncate(sent):
+    ss = sent.split('. ')
+    if len(ss) <= num_sent:
+      return sent
+    return '. '.join(ss[:num_sent]) + '.'
   for domain, splits in domains:
     for split in splits:
       in_fname = os.path.join(from_bk, domain, split + '.' + format)
       out_fname = os.path.join(to_bk, domain, split + '.' + format)
+      print('{} -> {}'.format(in_fname, out_fname))
       with tf.io.gfile.GFile(in_fname, 'r') as fin, tf.io.gfile.GFile(out_fname, 'w') as fout:
         for i, line in enumerate(fin):
           ls = line.rstrip('\n').split('\t')
@@ -299,7 +308,7 @@ def truncate_ret_sent(from_bk, to_bk, domains: List[Tuple[str, List[str]]], form
           prev, after = ls[:4], ls[4:]
           if len(after[5]) == 0 or len(after[0]) == 0:
             empty += 1
-          after = ['. '.join(s.split('. ')[:num_sent]) for s in after]
+          after = [truncate(s) for s in after]
           fout.write('\t'.join(prev + after) + '\n')
   print('#empty {}'.format(empty))
 
@@ -345,6 +354,8 @@ def combine_ret_bt(from_bk_ret, from_bk_bt, to_bk, domains: List[Tuple[str, List
 
 
 if __name__ == '__main__':
+  task = sys.argv[1]
+
   # combine('test', 'test.prep')
   # get_input('test.prep', 'test.prep.input')
   # get_input_unifiedqa('test.prep', 'test.prep.unifiedqa_input')
@@ -375,14 +386,23 @@ if __name__ == '__main__':
 
   #multi2one_all(UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, EXT_DOMAINS, num_sep=5)
 
-  #retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
-  #             SUB_TEST_DOMAINS, splits_restrict={'dev'})
-  #retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
-  #             SUB_TEST_DOMAINS, splits_restrict={'train', 'test'})
-  #retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA,
-  #             list(set(DOMAINS) - set(SUB_TEST_DOMAINS)), splits_restrict={'train', 'dev', 'test'})
+  if task == 'bt':
+    replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, TEST_DOMAINS)
+    replace_in_ques_bt(TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, MT_TEST_DOMAINS)
 
-  #truncate_ret_sent(UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, domains=DOMAINS, num_sent=3)
+  if task == 'ret':
+    retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA, DOMAINS, splits_restrict={'train', 'dev', 'test'})
+    truncate_ret_sent(UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, domains=DOMAINS, num_sent=3)
+    retrieve_aug(TEST_PREP_GS, TEST_PREP_GS_RET_DRQA, MT_TEST_DOMAINS, splits_restrict={'val', 'dev', 'test'})
+    truncate_ret_sent(TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, domains=MT_TEST_DOMAINS, num_sent=3)
+
+  if task == 'combine_ret_bt':
+    combine_ret_bt(UNIFIEDQA_PREP_GS_RET_DRQA_3S, UNIFIEDQA_PREP_GS_BT_REP,
+                   UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP, TEST_DOMAINS,
+                   splits_restrict={'dev'}, num_bt=5)
+    combine_ret_bt(TEST_PREP_GS_RET_DRQA_3S, TEST_PREP_GS_BT_REP,
+                   TEST_PREP_GS_RET_DRQA_3S_BT_REP, MT_TEST_DOMAINS,
+                   splits_restrict={'test'}, num_bt=5)
 
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_OL_ANS, EXT_DOMAINS, multiline=False)
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_ANS, EXT_DOMAINS, multiline=True)
@@ -392,6 +412,3 @@ if __name__ == '__main__':
   #                               'output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000',
   #                               'output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000'], add_ans=True)
   #multi2one_all(UNIFIEDQA_RAW_DECODE_GS_ANS_NO, UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO, EXT_DOMAINS, num_sep=5)
-
-  combine_ret_bt(UNIFIEDQA_PREP_GS_RET_DRQA_3S, UNIFIEDQA_PREP_GS_BT_REP, UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP,
-                 SUB_TEST_DOMAINS, splits_restrict={'dev'}, num_bt=5)

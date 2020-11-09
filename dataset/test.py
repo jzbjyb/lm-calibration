@@ -10,6 +10,11 @@ TEST_GS = 'gs://neulab-qa/data/test'
 TEST_PREP_GS = 'gs://neulab-qa/data/test_prep'
 TEST_PREP_GS_BT = 'gs://neulab-qa/data/test_prep_bt'
 TEST_PREP_GS_BT_REP = 'gs://neulab-qa/data/test_prep_bt_replace'
+TEST_PREP_GS_RET_DRQA = 'gs://neulab-qa/data/test_prep_ret_drqa'
+TEST_PREP_GS_RET_DRQA_3S = 'gs://neulab-qa/data/test_prep_ret_drqa_3s'
+TEST_PREP_GS_RET_DRQA_3S_BT_REP = 'gs://neulab-qa/data/test_prep_ret_drqa_3s_bt_replace'
+
+DOMAINS = [('', ['val', 'dev', 'test'])]
 
 def one2multi():
   for split in ['dev', 'val', 'test']:
