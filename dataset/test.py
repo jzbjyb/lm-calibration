@@ -85,6 +85,22 @@ def build_test(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-p
     text_preprocessor=[trivia_preprocessor],
     postprocess_fn=t5.data.postprocessors.lower_text,
     metric_fns=[t5.evaluation.metrics.accuracy])
+  t5.data.TaskRegistry.add(
+    'test_ret_drqa_3s_bt_replace',
+    dataset_fn=functools.partial(
+      qa_dataset_fn_ret, bucket=TEST_PREP_GS_RET_DRQA_3S_BT_REP, ret_ind=ret_ind, ret_method=ret_method),
+    splits=DOMAINS[0][1],
+    text_preprocessor=[trivia_preprocessor],
+    postprocess_fn=t5.data.postprocessors.lower_text,
+    metric_fns=[t5.evaluation.metrics.accuracy])
+  t5.data.TaskRegistry.add(
+    'test_ret_drqa_3s_bt_replace_inp',
+    dataset_fn=functools.partial(
+      qa_dataset_fn_ret, bucket=TEST_PREP_GS_RET_DRQA_3S_BT_REP, ret_ind=ret_ind, ret_method=ret_method, onlyinput=True),
+    splits=DOMAINS[0][1],
+    text_preprocessor=[trivia_preprocessor],
+    postprocess_fn=t5.data.postprocessors.lower_text,
+    metric_fns=[t5.evaluation.metrics.accuracy])
 
   t5.data.MixtureRegistry.remove('test_mix')
   t5.data.MixtureRegistry.add('test_mix', ['test'], default_rate=1.0)
@@ -96,3 +112,7 @@ def build_test(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-p
   t5.data.MixtureRegistry.add('test_bt_mix', ['test_bt'], default_rate=1.0)
   t5.data.MixtureRegistry.remove('test_bt_replace_mix')
   t5.data.MixtureRegistry.add('test_bt_replace_mix', ['test_bt_replace'], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('test_ret_drqa_3s_bt_replace_mix')
+  t5.data.MixtureRegistry.add('test_ret_drqa_3s_bt_replace_mix', ['test_ret_drqa_3s_bt_replace'], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('test_ret_drqa_3s_bt_replace_inp_mix')
+  t5.data.MixtureRegistry.add('test_ret_drqa_3s_bt_replace_inp_mix', ['test_ret_drqa_3s_bt_replace_inp'], default_rate=1.0)

@@ -139,7 +139,8 @@ def qa_dataset_fn_ret(split: str,
                       format: str='tsv',
                       num_ret: int=5,
                       ret_ind: int=0,
-                      ret_method: str='q-prepend'):
+                      ret_method: str='q-prepend',
+                      onlyinput: bool=False):
   ret_method = set(ret_method.split('-'))
   if domain:
     file = os.path.join(bucket, domain, split + '.' + format)
@@ -167,7 +168,10 @@ def qa_dataset_fn_ret(split: str,
         answer = tf.strings.join([ars[ret_ind], ' \n ', answer])
       else:
         raise NotImplementedError
-    return question, answer, 1.0 if is_correct else -1.0
+    if onlyinput:
+      return '', question, 1.0 if is_correct else -1.0
+    else:
+      return question, answer, 1.0 if is_correct else -1.0
   ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
   return ds
 

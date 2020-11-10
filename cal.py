@@ -50,7 +50,7 @@ def get_ece(acc_li: List[float], conf_li: List[float], plot: bool=False):
 
   bins = [[] for _ in range(num_bins)]
   for acc, conf in zip(acc_li, conf_li):
-    assert conf >= 0 and conf <= 1, 'confidence {} out of range'.format(conf)
+    conf = max(0, min(1, conf))
     ind = min(int(conf / margin), num_bins - 1)
     bins[ind].append((conf, acc))
 
@@ -103,7 +103,7 @@ def compute_ece(acc_li: List[float], conf_li: List[float], task_li: List[str], m
 
 
 def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
-        temp: float=1.0, norm: str = 'softmax', xgb_model_path=None, ana: bool=False, method: str='micro', **kwargs):
+        temp: float=1.0, norm: str='softmax', xgb_model_path=None, ana: bool=False, method: str='micro', **kwargs):
   real_acc_li = []
   real_task_li = []
   acc_li = []
@@ -171,10 +171,16 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
     else:
       raise NotImplementedError
     assert len(scores) == len(weights) and len(scores) % num_bt == 0, 'wrong correspondence'
+
     # use sum of log prob
     _scores = [np.sum(scores[k * num_bt:k * num_bt + num_bt]) for k in range(len(scores) // num_bt)]
     _raw_scores = [np.sum(raw_scores[k * num_bt:k * num_bt + num_bt]) for k in range(len(raw_scores) // num_bt)]
     _weights = [weights[k * num_bt:k * num_bt + num_bt] for k in range(len(weights) // num_bt)]
+
+    if num_bt and norm == 'no':
+      _scores = [s / num_bt for s in _scores]
+      _scores = softmax(np.array(_scores) / temp)
+
     for score, weight in zip(_scores, _weights):
       assert len(np.unique(weight)) == 1, 'wrong correspondence'
       weight = weight[0]
