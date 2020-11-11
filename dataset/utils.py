@@ -22,11 +22,14 @@ def trivia_preprocessor(ds):
     return text
 
   def to_inputs_and_targets(ex):
-    return {
+    r = {
       'inputs': normalize_text(ex['question']),
       'targets': normalize_text(ex['answer']),
       'weights': ex['weights']
     }
+    if 'ind' in ex:
+      r['ind'] = ex['ind']
+    return r
 
   return ds.map(to_inputs_and_targets, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
@@ -55,8 +58,8 @@ def qa_dataset_fn_oneline(split: str,
       ans.append(tf.strings.regex_replace(an, '\\' + sep if sep in {'|'} else sep, ' '))
     assert len(ans) == num_sep, 'should have more answers'
     ans = ans + ['']  # make sure the last one is "sep"
-    return question, tf.strings.join(ans, separator=' {} '.format(sep)), 1.0
-  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
+    return ind, question, tf.strings.join(ans, separator=' {} '.format(sep)), 1.0
+  ds = ds.map(lambda *ex: dict(zip(['ind', 'question', 'answer', 'weights'], map_fn(*ex))))
   return ds
 
 
@@ -99,15 +102,15 @@ def qa_dataset_fn(split: str,
     question = tf.strings.regex_replace(question, '\\\\n', '\n')
     is_correct = correct == 'True'
     if neg_method == 'weight':
-      return question, answer, 1.0 if is_correct else -1.0 / 4
+      return ind, question, answer, 1.0 if is_correct else -1.0 / 4
     if neg_method == 'indicator':
-      return tf.strings.join([question, ('True:' if is_correct else 'False:')], separator=' '), answer, 1.0
+      return ind, tf.strings.join([question, ('True:' if is_correct else 'False:')], separator=' '), answer, 1.0
     if neg_method == 'indicator_eval':
-      return tf.strings.join([question, 'True'], separator=' '), answer, 1.0
+      return ind, tf.strings.join([question, 'True'], separator=' '), answer, 1.0
     if neg_method == 'indicator_eval_false':
-      return tf.strings.join([question, 'False'], separator=' '), answer, 1.0
+      return ind, tf.strings.join([question, 'False'], separator=' '), answer, 1.0
     raise NotImplementedError
-  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
+  ds = ds.map(lambda *ex: dict(zip(['ind', 'question', 'answer', 'weights'], map_fn(*ex))))
   ds = ds.filter(lambda *ex: use_neg or ex[-1] == 'True')
   return ds
 
@@ -127,8 +130,8 @@ def qa_dataset_onlyinput_fn(split: str,
     num_parallel_calls=tf.data.experimental.AUTOTUNE)
   def map_fn(ind: str, question: str, answer: str, correct: str):
     question = tf.strings.regex_replace(question, '\\\\n', '\n')
-    return '', question, 1.0
-  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
+    return ind, '', question, 1.0
+  ds = ds.map(lambda *ex: dict(zip(['ind', 'question', 'answer', 'weights'], map_fn(*ex))))
   return ds
 
 
@@ -169,11 +172,27 @@ def qa_dataset_fn_ret(split: str,
       else:
         raise NotImplementedError
     if onlyinput:
-      return '', question, 1.0 if is_correct else -1.0
+      return ind, '', question, 1.0 if is_correct else -1.0
     else:
-      return question, answer, 1.0 if is_correct else -1.0
-  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
+      return ind, question, answer, 1.0 if is_correct else -1.0
+  ds = ds.map(lambda *ex: dict(zip(['ind', 'question', 'answer', 'weights'], map_fn(*ex))))
   return ds
+
+
+def is_int(s):
+  try:
+    int(s)
+    return True
+  except ValueError:
+    return False
+
+
+def parse_ind(ind: str, get_input: bool=True):
+  inds = ind.split('-')
+  if get_input:
+    ind = [ind for ind in inds if is_int(ind)][0]
+    return ind
+  raise NotImplementedError
 
 
 def read_score_data(filename: str, mixture: str, split: str, **kwargs):
@@ -188,6 +207,7 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
       inp_perp_fin = None
 
     prev_inp = None
+    prev_ind = None
     scores = []
     input_len = []
     target_len = []
@@ -213,6 +233,8 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
 
       weight = float(ex['weights'].numpy())
       inp = ex['inputs_plaintext'].numpy().decode()
+      ind = parse_ind(ex['ind'].numpy().decode())
+
       ls = l.strip().split('\t')
       if len(ls) == 1:
         score = ls[0]
@@ -226,7 +248,7 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
         tgt_tokens = [vocab.decode([i]) for i in tgt_tokens]
         logprob = (inp_tokens, tgt_tokens, logprob[:len(tgt_tokens)])
         score = float(score)
-      if prev_inp is not None and prev_inp != inp:
+      if prev_ind is not None and prev_ind != ind:
         var = np.var(np.exp(np.array(scores)))
         score_var = [var] * len(scores)
         yield_result = {'task': task,
@@ -253,6 +275,7 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
       logprobs.append(logprob)
       targets.append(int(weight == 1))
       prev_inp = inp
+      prev_ind = ind
     if len(scores) > 0:
       var = np.var(np.exp(np.array(scores)))
       score_var = [var] * len(scores)

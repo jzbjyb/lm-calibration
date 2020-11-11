@@ -30,7 +30,7 @@ elif [[ $format == 'ext' ]]; then
     tgt_len=640  # 128 * 5
     if [[ $from_model == '3B' ]]; then
         tpb=20480  # 128 * 5 * 32
-        train_steps=1150000
+        train_steps=1105000
     elif [[ $from_model == '11B' ]]; then
         tpb=3200  # 128 * 5 * 5
         train_steps=1125000

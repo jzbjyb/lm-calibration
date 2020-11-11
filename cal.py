@@ -1,9 +1,10 @@
-from typing import List
+from typing import List, Dict
 import argparse
 import os
 from operator import itemgetter
 import numpy as np
 from scipy.special import softmax
+import itertools
 import matplotlib.pyplot as plt
 import matplotlib
 import matplotlib.cm as cm
@@ -136,6 +137,15 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
     scores = choose_score([s['log_prob'] for s in samples], weights)
 
     if ana:
+      if num_bt > 1:
+        sample['input_len'] = [sample['input_len'][i] for i in range(0, len(sample['input_len']), num_bt)]
+        sample['target_len'] = [np.sum(sample['target_len'][i:i+num_bt]) for i in range(0, len(sample['target_len']), num_bt)]
+        sample['input_tokens'] = [sample['input_tokens'][i] for i in range(0, len(sample['input_tokens']), num_bt)]
+        sample['target_tokens'] = [list(itertools.chain(*sample['target_tokens'][i:i+num_bt])) for i in range(0, len(sample['target_tokens']), num_bt)]
+        sample['logprobs'] = list(zip([sample['logprobs'][i][0] for i in range(0, len(sample['logprobs']), num_bt)],
+                                      [list(itertools.chain(*[s[1] for s in sample['logprobs'][i:i + num_bt]])) for i in range(0, len(sample['logprobs']), num_bt)],
+                                      [list(itertools.chain(*[s[2] for s in sample['logprobs'][i:i + num_bt]])) for i in range(0, len(sample['logprobs']), num_bt)]))
+
       input_len_li.extend(sample['input_len'])
       target_len_li.extend(sample['target_len'])
       input_tokens_li.extend(sample['input_tokens'])
@@ -177,7 +187,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
     _raw_scores = [np.sum(raw_scores[k * num_bt:k * num_bt + num_bt]) for k in range(len(raw_scores) // num_bt)]
     _weights = [weights[k * num_bt:k * num_bt + num_bt] for k in range(len(weights) // num_bt)]
 
-    if num_bt and norm == 'no':
+    if num_bt > 1 and norm == 'no':
       _scores = [s / num_bt for s in _scores]
       _scores = softmax(np.array(_scores) / temp)
 
@@ -198,7 +208,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
   print('ece', ece)
 
   if ana:
-    analysis({
+    return {
       'conf': np.array(conf_li),
       'acc': np.array(acc_li),
       'input_len': np.array(input_len_li),
@@ -207,7 +217,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
       'target_tokens': np.array(target_tokens_li),
       'overlap_ratio': np.array(overlap_ratio_li),
       'logprobs': np.array(logprobs_li),
-    }, 'output/ana', topk=500)
+    }
 
 
 _norm = matplotlib.colors.Normalize(vmin=-70, vmax=0)
@@ -217,8 +227,24 @@ def to_stype(scalar, correct: bool) -> str:
     *([n * 100 for n in _map.to_rgba(scalar)] + (['font-weight:bold' if correct else '']) + [scalar]))
 
 
-def analysis(data, output, topk=100):
+def analysis_compare(datas: List[Dict], output: str, topk=100):
   os.makedirs(output, exist_ok=True)
+  data1 = datas[0]
+  data2 = datas[1]
+  acc = data1['acc']
+  conf_gain = data2['conf'] - data1['conf']
+
+  score = -np.array(conf_gain) * (np.array(data1['acc']) * 2 - 1)
+  ind = np.argsort(score)[:topk]
+
+  display(output, 'improve', data2, ind, conf_gain, acc)
+
+
+def analysis(datas: List[Dict], output: str, topk=100):
+  if len(datas) > 1:
+    return analysis_compare(datas, output, topk=topk)
+  os.makedirs(output, exist_ok=True)
+  data = datas[0]
   conf = data['conf']
   acc = data['acc']
   gap = conf - acc
@@ -231,32 +257,36 @@ def analysis(data, output, topk=100):
   close = np.argsort(np.abs(gap))[:topk]
 
   for ind, ind_name in [(under, 'under'), (over, 'over'), (close, 'close')]:
-    for metric, xmin, xmax in [('input_len', 0, 512), ('target_len', 0, 128), ('input_tokens', 1000, 30000), ('target_tokens', 1000, 30000), ('logprobs', 0, 0)]:
-      x = data[metric][ind]
-      if metric == 'logprobs':
-        with open(os.path.join(output, '{}-{}.html'.format(metric, ind_name)), 'w') as fout:
-          for (inp, tgt, lps), _conf, _acc in zip(x, conf[ind], acc[ind]):
-            fout.write('<div><div>{}</div>{}</div><hr/>\n'.format(
-              inp, '<div>{} {}</div>'.format(
-                _conf, ' '.join(['<span {}>{}</span>'.format(to_stype(l, _acc == 1), t) for t, l in zip(tgt, lps)]))))
-        continue
-      elif '_tokens' in metric:
-        x = np.array([t for ts in x for t in ts])
-        bins = 100
-        plt.hist(x, bins=bins, weights=np.ones(len(x)) / len(x) * 10)
-      else:
-        bins = 20
-        plt.hist(x, bins=bins, weights=np.ones(len(x)) / len(x))
-      plt.xlim(xmin, xmax)
-      plt.title('avg {}'.format(np.mean(x)))
-      plt.savefig(os.path.join(output, '{}-{}.png'.format(metric, ind_name)))
-      plt.close()
+    display(output, ind_name, data, ind, conf, acc)
+
+
+def display(output: str, prefix: str, data: Dict, ind: List[int], conf: List[str], acc: List[int]):
+  for metric, xmin, xmax in [('input_len', 0, 512), ('target_len', 0, 128), ('input_tokens', 1000, 30000), ('target_tokens', 1000, 30000), ('logprobs', 0, 0)]:
+    x = data[metric][ind]
+    if metric == 'logprobs':
+      with open(os.path.join(output, '{}-{}.html'.format(metric, prefix)), 'w') as fout:
+        for (inp, tgt, lps), _conf, _acc in zip(x, conf[ind], acc[ind]):
+          fout.write('<div><div>{}</div>{}</div><hr/>\n'.format(
+            inp, '<div>{} {}</div>'.format(
+              _conf, ' '.join(['<span {}>{}</span>'.format(to_stype(l, _acc == 1), t) for t, l in zip(tgt, lps)]))))
+      continue
+    elif '_tokens' in metric:
+      x = np.array([t for ts in x for t in ts])
+      bins = 100
+      plt.hist(x, bins=bins, weights=np.ones(len(x)) / len(x) * 10)
+    else:
+      bins = 20
+      plt.hist(x, bins=bins, weights=np.ones(len(x)) / len(x))
+    plt.xlim(xmin, xmax)
+    plt.title('avg {}'.format(np.mean(x)))
+    plt.savefig(os.path.join(output, '{}-{}.png'.format(metric, prefix)))
+    plt.close()
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='calibration computation')
   parser.add_argument('--method', type=str, help='metric method', default='macro', choices=['micro', 'macro'])
-  parser.add_argument('--mix', type=str, help='mixture', default='uq_sub_test_mix')
+  parser.add_argument('--mix', type=str, help='mixture', default='uq_sub_test_mix', nargs='+')
   parser.add_argument('--split', type=str, help='split', default='dev')
   parser.add_argument('--score', type=str, help='score file', nargs='+')
   parser.add_argument('--inp_perp', type=str, help='feature of input perplexity', default=None)
@@ -264,11 +294,23 @@ if __name__ == '__main__':
   parser.add_argument('--temp', type=float, help='temperature of softmax', default=1.0)
   parser.add_argument('--xgb', type=str, help='xgb model path', default=None)
   parser.add_argument('--norm', type=str, help='normalization method', default='softmax', choices=['softmax', 'no', 'margin', 'margin_order'])
-  parser.add_argument('--ana', action='store_true')
+  parser.add_argument('--ana', type=str, help='ana path', default=None)
   args = parser.parse_args()
 
   # build tasks and mixtures
-  build(neg_method='weight')
+  build(neg_method='weight', ret_ind=0, ret_method='q-append')
 
-  acc(args.mix, args.score, args.split, args.num_bt, args.temp, norm=args.norm, xgb_model_path=args.xgb,
-      ana=args.ana, method=args.method, inp_perp=args.inp_perp)
+  if args.ana:
+    ana_datas = []
+    for i, (mix, score_file) in enumerate(zip(args.mix, args.score)):
+      if i == 0 and len(args.mix) > 1:  # the first one use default
+        ana_data = acc(mix, [score_file], args.split, ana=args.ana, method=args.method)
+      else:
+        ana_data = acc(mix, [score_file], args.split, args.num_bt, args.temp, norm=args.norm, xgb_model_path=args.xgb,
+            ana=args.ana, method=args.method, inp_perp=args.inp_perp)
+      ana_datas.append(ana_data)
+    print('analysis to {}'.format(args.ana))
+    analysis(ana_datas, args.ana, 500)
+  else:
+    acc(args.mix[0], args.score, args.split, args.num_bt, args.temp, norm=args.norm, xgb_model_path=args.xgb,
+        ana=args.ana, method=args.method, inp_perp=args.inp_perp)
