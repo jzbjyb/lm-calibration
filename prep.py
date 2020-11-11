@@ -178,7 +178,7 @@ def multi2one_all(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: 
 
 
 def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
-                     split: str, decode_files: List[str], format: str='tsv', beam_size: int=5,
+                     split: str, decode_files: List[str], format: str='tsv', beam_size: int=5, keep_size: int=5,
                      use_lower: bool=False, add_ans: bool=False):
   count = 0
   defins = [open(df) for df in decode_files]
@@ -190,7 +190,7 @@ def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
       with tf.io.gfile.GFile(from_file, 'r') as fin, tf.io.gfile.GFile(to_file, 'w') as fout:
         for lid, line in enumerate(fin):
           count += 1
-          question, answer = line.strip().split('\t')
+          question, answer = line.rstrip('\n').split('\t')
           question = question.strip()
           answer = answer.strip()
           if use_lower:
@@ -207,16 +207,16 @@ def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
                 continue
               decodes[de] += 1
           decodes: List[str] = list(map(itemgetter(0), sorted(decodes.items(), key=lambda x: -x[1])))
-          real_decodes: List[str] = list(map(itemgetter(0), sorted(real_decodes.items(), key=lambda x: -x[1])))[:beam_size]
+          real_decodes: List[str] = list(map(itemgetter(0), sorted(real_decodes.items(), key=lambda x: -x[1])))[:keep_size]
           if add_ans:
             question = '{} \\n {}'.format(question, ' '.join(['({}) {}'.format(IND2CHAR[i], a) for i, a in enumerate(real_decodes)]))
           if len(decodes) == 0:
-            decodes = [answer] * beam_size
+            decodes = [answer] * keep_size
             for did, de in enumerate(decodes):
               fout.write('{}\t{}\t{}\t{}\n'.format(lid, question, de, 'True'))
           else:
-            decodes = ([answer] + decodes * beam_size)[:beam_size]  # the correct answer is always the first one
-            assert len(decodes) == beam_size, '#decodes {} {} less than {}'.format(len(decodes), decodes, beam_size)
+            decodes = ([answer] + decodes * keep_size)[:keep_size]  # the correct answer is always the first one
+            assert len(decodes) == keep_size, '#decodes {} {} less than {}'.format(len(decodes), decodes, keep_size)
             for did, de in enumerate(decodes):
               fout.write('{}\t{}\t{}\t{}\n'.format(lid, question, de, 'True' if did == 0 else 'False'))
   finally:
@@ -406,22 +406,6 @@ if __name__ == '__main__':
 
   #one2multi_test()
 
-  #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq', EXT_DOMAINS, split='dev',
-  #                 decode_file='output/decode/unifiedqa/ext/uq.txt-1100500')
-
-  #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_softmax', EXT_DOMAINS, split='dev',
-  #                 decode_file='output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000')
-
-  #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_margin', EXT_DOMAINS, split='dev',
-  #                 decode_file='output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000')
-
-  #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, EXT_DOMAINS, split='dev', use_lower=True,
-  #                 decode_files=['output/decode/unifiedqa/ext/uq.txt-1100500',
-  #                               'output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000',
-  #                               'output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000'])
-
-  #multi2one_all(UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, EXT_DOMAINS, num_sep=5)
-
   if task == 'bt':
     replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, DOMAINS, splits_restrict={'dev'})
     replace_in_ques_bt(TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, MT_TEST_DOMAINS, splits_restrict={'test'})
@@ -445,11 +429,12 @@ if __name__ == '__main__':
     fix_test(TEST_PREP_GS_RET_DRQA + '.bak', TEST_PREP_GS_RET_DRQA, MT_TEST_DOMAINS)
     fix_test(TEST_PREP_GS_BT + '.bak', TEST_PREP_GS_BT, MT_TEST_DOMAINS, num_bt=5)
 
+  if task == 'decode':
+    convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq3B', EXT_DOMAINS, split='dev', use_lower=True,
+                     decode_files=['output/decode/unifiedqa/ext_dev/uq_bs20.txt-1100500'], beam_size=20, keep_size=5)
+    convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS + '_uq3B', EXT_DOMAINS, split='train', use_lower=True,
+                     decode_files=['output/decode/unifiedqa/ext_train/uq_bs20.txt-1100500'], beam_size=20, keep_size=5)
+    multi2one_all(UNIFIEDQA_RAW_DECODE_GS + '_uq3B', UNIFIEDQA_RAW_DECODE_GS_OL + '_uq3B', EXT_DOMAINS, num_sep=5)
+
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_OL_ANS, EXT_DOMAINS, multiline=False)
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_ANS, EXT_DOMAINS, multiline=True)
-
-  #convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS_ANS_NO, EXT_DOMAINS, split='dev', use_lower=True,
-  #                 decode_files=['output/decode/unifiedqa/ext/uq.txt-1100500',
-  #                               'output/decode/unifiedqa/ext/uq_ft_softmax.txt-1110000',
-  #                               'output/decode/unifiedqa/ext/uq_ft_margin.txt-1110000'], add_ans=True)
-  #multi2one_all(UNIFIEDQA_RAW_DECODE_GS_ANS_NO, UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO, EXT_DOMAINS, num_sep=5)

@@ -56,7 +56,7 @@ class TempCal(nn.Module):
 
   def forward(self, scores, targets):
     mask = scores.ne(1.0).float()
-    logits = (scores / self.temp * targets).sum(-1)
+    logits = torch.logsumexp(scores / self.temp + torch.log(targets.float()), -1)
     log_z = torch.logsumexp(scores / self.temp + torch.log(mask), -1)
     log_prob = logits - log_z
     loss = -log_prob.mean()
