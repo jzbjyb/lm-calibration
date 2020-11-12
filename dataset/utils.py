@@ -58,8 +58,8 @@ def qa_dataset_fn_oneline(split: str,
       ans.append(tf.strings.regex_replace(an, '\\' + sep if sep in {'|'} else sep, ' '))
     assert len(ans) == num_sep, 'should have more answers'
     ans = ans + ['']  # make sure the last one is "sep"
-    return ind, question, tf.strings.join(ans, separator=' {} '.format(sep)), 1.0
-  ds = ds.map(lambda *ex: dict(zip(['ind', 'question', 'answer', 'weights'], map_fn(*ex))))
+    return question, tf.strings.join(ans, separator=' {} '.format(sep)), 1.0
+  ds = ds.map(lambda *ex: dict(zip(['question', 'answer', 'weights'], map_fn(*ex))))
   return ds
 
 

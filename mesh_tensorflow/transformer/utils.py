@@ -58,7 +58,7 @@ _DEFAULT_CONFIG_FILE = "./gin/defaults.gin"
 _MODEL_FEATURES = [
     "inputs", "inputs_position", "inputs_segmentation", "targets",
     "targets_position", "targets_segmentation", "targets_subsegmentation",
-    "weights", "ind"  # TODO: debug
+    "weights"  # TODO: debug
 ]
 
 

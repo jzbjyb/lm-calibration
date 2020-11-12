@@ -12,16 +12,24 @@ UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
 UNIFIEDQA_PREP_GS_RET_DRQA = 'gs://neulab-qa/data/unifiedqa_ret_drqa'
 UNIFIEDQA_PREP_GS_RET_DRQA_3S = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s'
 UNIFIEDQA_RAW_GS = 'gs://neulab-qa/unifiedqa/data'
+UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
+UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt'
+UNIFIEDQA_PREP_GS_BT_REP = 'gs://neulab-qa/data/unifiedqa_bt_replace'
+UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s_bt_replace'
+
 UNIFIEDQA_RAW_DECODE_GS = 'gs://neulab-qa/data/unifiedqa_decode'
 UNIFIEDQA_RAW_DECODE_GS_ANS = 'gs://neulab-qa/data/unifiedqa_decode_ans'
 UNIFIEDQA_RAW_DECODE_GS_ANS_NO = 'gs://neulab-qa/data/unifiedqa_decode_ans_no'
 UNIFIEDQA_RAW_DECODE_GS_OL = 'gs://neulab-qa/data/unifiedqa_decode_ol'
 UNIFIEDQA_RAW_DECODE_GS_OL_ANS = 'gs://neulab-qa/data/unifiedqa_decode_ol_ans'
 UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO = 'gs://neulab-qa/data/unifiedqa_decode_ol_ans_no'
-UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
-UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt'
-UNIFIEDQA_PREP_GS_BT_REP = 'gs://neulab-qa/data/unifiedqa_bt_replace'
-UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s_bt_replace'
+
+UNIFIEDQA_RAW_DECODE_UQ3B_GS = 'gs://neulab-qa/data/unifiedqa_decode_uq3B'
+UNIFIEDQA_RAW_DECODE_UQ3B_GS_OL = 'gs://neulab-qa/data/unifiedqa_decode_ol_uq3B'
+UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_ret_drqa'
+UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_ret_drqa_3s'
+UNIFIEDQA_RAW_DECODE_UQ3B_GS_BT = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_bt'
+UNIFIEDQA_RAW_DECODE_UQ3B_GS_BT_REP = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_bt_replace'
 
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
@@ -344,7 +352,7 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
     t5.data.TaskRegistry.add(
       'uq_{}_decode_uq3B'.format(domain),
       dataset_fn=functools.partial(
-        qa_dataset_fn, bucket=UNIFIEDQA_RAW_DECODE_GS + '_uq3B', domain=domain, use_neg=True, neg_method=neg_method),
+        qa_dataset_fn, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_GS, domain=domain, use_neg=True, neg_method=neg_method),
       splits=splits,
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
@@ -380,7 +388,7 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
     t5.data.TaskRegistry.add(
       'uq_{}_decode_ol_uq3B'.format(domain),
       dataset_fn=functools.partial(
-        qa_dataset_fn_oneline, bucket=UNIFIEDQA_RAW_DECODE_GS_OL + '_uq3B', domain=domain, num_sep=5),
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_GS_OL, domain=domain, num_sep=5),
       splits=splits,
       text_preprocessor=[trivia_preprocessor],
       token_preprocessor=[functools.partial(concat_preprocessor, num_sep=5)],
@@ -423,6 +431,8 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_mix', ['uq_{}_decode_ol'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_uq3B_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_uq3B_mix', ['uq_{}_decode_ol_uq3B'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_mix', ['uq_{}_decode_uq3B'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_ans_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_ans_mix', ['uq_{}_decode_ol_ans'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_ans_no_mix')

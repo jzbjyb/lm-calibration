@@ -24,6 +24,11 @@ SUB_TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
                     ('winogrande_m', ('train', 'dev')),
                     ('winogrande_s', ('train', 'dev')),
                     ('mctest_corrected_the_separator', ('train', 'dev'))]
+EXT_DOMAINS = [('squad1_1', ('train', 'dev')),
+               ('squad2', ('train', 'dev')),
+               ('newsqa', ('train', 'dev')),
+               ('quoref', ('train', 'dev')),
+               ('ropes', ('train', 'dev'))]
 DOMAINS = TRAIN_DOMAINS + TEST_DOMAINS
 
 
@@ -102,3 +107,4 @@ def bt(from_dir, to_dir, domains: List[Tuple[str, Tuple]], format: str='tsv', re
 bt('data/unifiedqa', 'data/unifiedqa_bt', TRAIN_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
 bt('data/unifiedqa', 'data/unifiedqa_bt', TEST_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
 bt('data/test_prep', 'data/test_prep_bt', [('', ('test',))], bt_count=4, out_count=4, restricted_splits={'test'})
+bt('data/unifiedqa_decode_uq3B', 'data/unifiedqa_decode_uq3B_bt', EXT_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})

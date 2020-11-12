@@ -10,7 +10,8 @@ tpu=$1
 # uq_clean_train_bt uq_clean_train_ret uq_clean_train_ret_bt uq_clean_train_ret_bt_inp
 # test_bt test_ret test_ret_bt test_ret_bt_inp
 
-for task in  uq_clean_train_bt uq_clean_train_ret uq_clean_train_ret_bt uq_clean_train_ret_bt_inp uq_clean_test_ret_bt_inp test_ret_bt test_ret_bt_inp; do
+: '
+for task in ; do
     for model in 3B; do
         if [[ $task == 'uq_sub_test' ]]; then
             output_root=output/exp/uq_sub_test/dev
@@ -104,5 +105,33 @@ for task in  uq_clean_train_bt uq_clean_train_ret uq_clean_train_ret_bt uq_clean
         #./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_softmax $step $mix $split &> nohup.out
         #./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} $step $mix $split &> nohup.out
         #./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} $step $mix $split &> nohup.out
+    done
+done
+'
+
+# ext
+
+for task in uq_ext_train uq_ext_test; do
+    for model in 3B; do
+        if [[ $task == 'uq_ext_train' ]]; then
+            output_root=output/exp/uq_ext_train/dev
+            mix=uq_ext_decode_train_uq3B_mix
+            split=dev
+        elif [[ $task == 'uq_ext_test' ]]; then
+            output_root=output/exp/uq_ext_test/dev
+            mix=uq_ext_decode_test_uq3B_mix
+            split=dev
+        fi
+
+        if [[ $model == '3B' ]]; then
+            step=1103000
+        elif [[ $model == '11B' ]]; then
+            step=1115000
+        fi
+
+        ./score.sh $tpu ${output_root}/${model}/uq_ft_margin.txt ${model} unifiedqa/ft_models/${model}_ext_margin $step $mix $split &> nohup.out
+        ./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_ext_softmax $step $mix $split &> nohup.out
+        ./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} $step $mix $split &> nohup.out
+        ./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} $step $mix $split &> nohup.out
     done
 done
