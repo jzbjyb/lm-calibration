@@ -11,8 +11,8 @@ tpu=$1
 # test_bt test_ret test_ret_bt test_ret_bt_inp
 
 : '
-for task in ; do
-    for model in 3B; do
+for task in uq_clean_test uq_clean_train test uq_clean_test_bt uq_clean_test_ret uq_clean_test_ret_bt uq_clean_test_ret_bt_inp uq_clean_train_inp uq_clean_test_inp uq_clean_train_ret_bt uq_clean_train_ret_bt_inp uq_clean_train_bt uq_clean_train_ret test_bt test_ret test_ret_bt test_inp test_ret_bt_inp; do
+    for model in 11B; do
         if [[ $task == 'uq_sub_test' ]]; then
             output_root=output/exp/uq_sub_test/dev
             mix=uq_sub_test_mix
@@ -102,9 +102,11 @@ for task in ; do
         fi
 
         ./score.sh $tpu ${output_root}/${model}/uq_ft_margin.txt ${model} unifiedqa/ft_models/${model}_margin $step $mix $split &> nohup.out
-        #./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_softmax $step $mix $split &> nohup.out
-        #./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} $step $mix $split &> nohup.out
-        #./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} $step $mix $split &> nohup.out
+        if [[ $task == 'uq_clean_test' ]] || [[ $task == 'uq_clean_train' ]] || [[ $task == 'test' ]]; then
+            ./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_softmax $step $mix $split &> nohup.out
+            ./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} $step $mix $split &> nohup.out
+            ./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} $step $mix $split &> nohup.out
+        fi
     done
 done
 '
@@ -112,25 +114,61 @@ done
 # ext
 
 # uq_ext_train uq_ext_test
+# uq_ext_train_inp uq_ext_test_inp
 # uq_ext_train_ret uq_ext_test_ret
+# uq_ext_train_bt uq_ext_test_bt
+# uq_ext_train_ret_bt uq_ext_test_ret_bt
+# uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp
 
-for task in uq_ext_train uq_ext_test; do
+for task in uq_ext_train_bt uq_ext_test_bt uq_ext_train_inp uq_ext_test_inp uq_ext_train_ret_bt uq_ext_test_ret_bt uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp; do
     for model in 3B; do
         if [[ $task == 'uq_ext_train' ]]; then
             output_root=output/exp/uq_ext_train/dev
             mix=uq_ext_decode_train_uq3B_mix
             split=dev
+        elif [[ $task == 'uq_ext_train_inp' ]]; then
+            output_root=output/exp/uq_ext_train/dev/inp
+            mix=uq_ext_decode_train_uq3B_inp_mix
+            split=dev
         elif [[ $task == 'uq_ext_train_ret' ]]; then
             output_root=output/exp/uq_ext_train/dev/ret
             mix=uq_ext_decode_train_uq3B_ret_drqa_3s_mix
+            split=dev
+        elif [[ $task == 'uq_ext_train_bt' ]]; then
+            output_root=output/exp/uq_ext_train/dev/bt
+            mix=uq_ext_decode_train_uq3B_bt_mix
+            split=dev
+        elif [[ $task == 'uq_ext_train_ret_bt' ]]; then
+            output_root=output/exp/uq_ext_train/dev/ret_bt
+            mix=uq_ext_decode_train_uq3B_ret_drqa_3s_bt_mix
+            split=dev
+        elif [[ $task == 'uq_ext_train_ret_bt_inp' ]]; then
+            output_root=output/exp/uq_ext_train/dev/ret_bt_inp
+            mix=uq_ext_decode_train_uq3B_ret_drqa_3s_bt_inp_mix
             split=dev
         elif [[ $task == 'uq_ext_test' ]]; then
             output_root=output/exp/uq_ext_test/dev
             mix=uq_ext_decode_test_uq3B_mix
             split=dev
+        elif [[ $task == 'uq_ext_test_inp' ]]; then
+            output_root=output/exp/uq_ext_test/dev/inp
+            mix=uq_ext_decode_test_uq3B_inp_mix
+            split=dev
         elif [[ $task == 'uq_ext_test_ret' ]]; then
             output_root=output/exp/uq_ext_test/dev/ret
             mix=uq_ext_decode_test_uq3B_ret_drqa_3s_mix
+            split=dev
+        elif [[ $task == 'uq_ext_test_bt' ]]; then
+            output_root=output/exp/uq_ext_test/dev/bt
+            mix=uq_ext_decode_test_uq3B_bt_mix
+            split=dev
+        elif [[ $task == 'uq_ext_test_ret_bt' ]]; then
+            output_root=output/exp/uq_ext_test/dev/ret_bt
+            mix=uq_ext_decode_test_uq3B_ret_drqa_3s_bt_mix
+            split=dev
+        elif [[ $task == 'uq_ext_test_ret_bt_inp' ]]; then
+            output_root=output/exp/uq_ext_test/dev/ret_bt_inp
+            mix=uq_ext_decode_test_uq3B_ret_drqa_3s_bt_inp_mix
             split=dev
         fi
 
@@ -140,9 +178,11 @@ for task in uq_ext_train uq_ext_test; do
             step=1115000
         fi
 
-        ./score.sh $tpu ${output_root}/${model}/uq_ft_margin.txt ${model} unifiedqa/ft_models/${model}_ext_margin $step $mix $split &> nohup.out
-        ./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_ext_softmax $step $mix $split &> nohup.out
         ./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} $step $mix $split &> nohup.out
-        ./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} $step $mix $split &> nohup.out
+        if [[ $task == 'uq_ext_train' ]] || [[ $task == 'uq_ext_test' ]]; then
+            ./score.sh $tpu ${output_root}/${model}/uq_ft_margin.txt ${model} unifiedqa/ft_models/${model}_ext_margin $step $mix $split &> nohup.out
+            ./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_ext_softmax $step $mix $split &> nohup.out
+            ./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} $step $mix $split &> nohup.out
+        fi
     done
 done
