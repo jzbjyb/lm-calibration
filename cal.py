@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Union
 import argparse
 import os
 from operator import itemgetter
@@ -103,6 +103,15 @@ def compute_ece(acc_li: List[float], conf_li: List[float], task_li: List[str], m
   return np.mean(overall)
 
 
+def concat_paraphrase(paras: List[List[Union[str, float]]], sep: Union[str, float]):
+  parasc = []
+  for i, para in enumerate(paras):
+    parasc.extend(para)
+    if i < len(paras) - 1:
+      parasc.append(sep)
+  return parasc
+
+
 def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
         temp: float=1.0, norm: str='softmax', xgb_model_path=None, ana: bool=False, method: str='micro', **kwargs):
   real_acc_li = []
@@ -143,8 +152,8 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
         sample['input_tokens'] = [sample['input_tokens'][i] for i in range(0, len(sample['input_tokens']), num_bt)]
         sample['target_tokens'] = [list(itertools.chain(*sample['target_tokens'][i:i+num_bt])) for i in range(0, len(sample['target_tokens']), num_bt)]
         sample['logprobs'] = list(zip([sample['logprobs'][i][0] for i in range(0, len(sample['logprobs']), num_bt)],
-                                      [list(itertools.chain(*[s[1] for s in sample['logprobs'][i:i + num_bt]])) for i in range(0, len(sample['logprobs']), num_bt)],
-                                      [list(itertools.chain(*[s[2] for s in sample['logprobs'][i:i + num_bt]])) for i in range(0, len(sample['logprobs']), num_bt)]))
+                                      [concat_paraphrase([s[1] for s in sample['logprobs'][i:i + num_bt]], sep=' ||| ') for i in range(0, len(sample['logprobs']), num_bt)],
+                                      [concat_paraphrase([s[2] for s in sample['logprobs'][i:i + num_bt]], sep=0.0) for i in range(0, len(sample['logprobs']), num_bt)]))
 
       input_len_li.extend(sample['input_len'])
       target_len_li.extend(sample['target_len'])
@@ -267,7 +276,7 @@ def display(output: str, prefix: str, data: Dict, ind: List[int], conf: List[str
       with open(os.path.join(output, '{}-{}.html'.format(metric, prefix)), 'w') as fout:
         for (inp, tgt, lps), _conf, _acc in zip(x, conf[ind], acc[ind]):
           fout.write('<div><div>{}</div>{}</div><hr/>\n'.format(
-            inp, '<div>{} {}</div>'.format(
+            inp.replace('\n', '</br>'), '<div>{} {}</div>'.format(
               _conf, ' '.join(['<span {}>{}</span>'.format(to_stype(l, _acc == 1), t) for t, l in zip(tgt, lps)]))))
       continue
     elif '_tokens' in metric:

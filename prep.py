@@ -418,7 +418,7 @@ if __name__ == '__main__':
     truncate_ret_sent(UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, domains=DOMAINS, num_sent=3)
     retrieve_aug(TEST_PREP_GS, TEST_PREP_GS_RET_DRQA, MT_TEST_DOMAINS, splits_restrict={'val', 'dev', 'test'})
     truncate_ret_sent(TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, domains=MT_TEST_DOMAINS, num_sent=3)
-    retrieve_aug(UNIFIEDQA_RAW_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA, EXT_DOMAINS, splits_restrict={'train', 'dev'})
+    retrieve_aug(UNIFIEDQA_RAW_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA, EXT_DOMAINS, splits_restrict={'dev'})
     truncate_ret_sent(UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S, domains=EXT_DOMAINS, num_sent=3)
 
   if task == 'combine_ret_bt':

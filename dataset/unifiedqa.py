@@ -358,6 +358,14 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
     t5.data.TaskRegistry.add(
+      'uq_{}_decode_uq3B_ret_drqa_3s'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_ret, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S, domain=domain, ret_ind=ret_ind, ret_method=ret_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
       'uq_{}_decode_uq_ft_softmax'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_fn, bucket=UNIFIEDQA_RAW_DECODE_GS + '_uq_ft_softmax', domain=domain, use_neg=True, neg_method=neg_method),
@@ -437,6 +445,9 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_ans_mix', ['uq_{}_decode_ol_ans'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_ans_no_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_ans_no_mix', ['uq_{}_decode_ol_ans_no'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_ret_drqa_3s_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_ret_drqa_3s_mix', ['uq_{}_decode_uq3B_ret_drqa_3s'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_mix', ['uq_{}_decode'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_mix')
@@ -445,3 +456,5 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
   t5.data.MixtureRegistry.add('uq_ext_decode_test_ans_mix', ['uq_{}_decode_ans'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_ans_no_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_ans_no_mix', ['uq_{}_decode_ans_no'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_ret_drqa_3s_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_ret_drqa_3s_mix', ['uq_{}_decode_uq3B_ret_drqa_3s'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)

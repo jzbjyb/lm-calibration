@@ -246,7 +246,7 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
         logprob = [float(i) for i in logprob.split(',')]
         inp_tokens = vocab.decode(inp_tokens)
         tgt_tokens = [vocab.decode([i]) for i in tgt_tokens]
-        logprob = (inp_tokens, tgt_tokens, logprob[:len(tgt_tokens)])
+        logprob = (inp, tgt_tokens, logprob[:len(tgt_tokens)])  # inp has '\n'
         score = float(score)
       if prev_ind is not None and prev_ind != ind:
         var = np.var(np.exp(np.array(scores)))

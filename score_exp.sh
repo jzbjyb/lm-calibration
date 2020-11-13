@@ -111,15 +111,26 @@ done
 
 # ext
 
+# uq_ext_train uq_ext_test
+# uq_ext_train_ret uq_ext_test_ret
+
 for task in uq_ext_train uq_ext_test; do
     for model in 3B; do
         if [[ $task == 'uq_ext_train' ]]; then
             output_root=output/exp/uq_ext_train/dev
             mix=uq_ext_decode_train_uq3B_mix
             split=dev
+        elif [[ $task == 'uq_ext_train_ret' ]]; then
+            output_root=output/exp/uq_ext_train/dev/ret
+            mix=uq_ext_decode_train_uq3B_ret_drqa_3s_mix
+            split=dev
         elif [[ $task == 'uq_ext_test' ]]; then
             output_root=output/exp/uq_ext_test/dev
             mix=uq_ext_decode_test_uq3B_mix
+            split=dev
+        elif [[ $task == 'uq_ext_test_ret' ]]; then
+            output_root=output/exp/uq_ext_test/dev/ret
+            mix=uq_ext_decode_test_uq3B_ret_drqa_3s_mix
             split=dev
         fi
 
