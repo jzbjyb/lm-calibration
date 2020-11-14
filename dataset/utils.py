@@ -162,6 +162,8 @@ def qa_dataset_fn_ret(split: str,
         question = tf.strings.join([question, ' \n ',  qrs[ret_ind]])
       elif 'prepend' in ret_method:
         question = tf.strings.join([qrs[ret_ind], ' \n ', question])
+      elif 'vis' in ret_method:
+        question = tf.strings.join([question, ' \n ', 'RETRIEVED: ', qrs[ret_ind]])
       else:
         raise NotImplementedError
     if 'a' in ret_method:
@@ -208,6 +210,7 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
 
     prev_inp = None
     prev_ind = None
+    prev_task = None
     scores = []
     input_len = []
     target_len = []
@@ -246,12 +249,12 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
         logprob = [float(i) for i in logprob.split(',')]
         inp_tokens = vocab.decode(inp_tokens)
         tgt_tokens = [vocab.decode([i]) for i in tgt_tokens]
-        logprob = (inp, tgt_tokens, logprob[:len(tgt_tokens)])  # inp has '\n'
+        logprob = (task, inp, tgt_tokens, logprob[:len(tgt_tokens)], int(weight == 1))  # inp has '\n'
         score = float(score)
-      if prev_ind is not None and prev_ind != ind:
+      if prev_ind is not None and (prev_task != task or prev_ind != ind):
         var = np.var(np.exp(np.array(scores)))
         score_var = [var] * len(scores)
-        yield_result = {'task': task,
+        yield_result = {'task': prev_task, 'ind': prev_ind,
                         'log_prob': scores, 'prob_var': score_var,
                         'input_len': input_len, 'target_len': target_len,
                         'target': targets,
@@ -276,10 +279,11 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
       targets.append(int(weight == 1))
       prev_inp = inp
       prev_ind = ind
+      prev_task = task
     if len(scores) > 0:
       var = np.var(np.exp(np.array(scores)))
       score_var = [var] * len(scores)
-      yield_result = {'task': task,
+      yield_result = {'task': prev_task, 'ind': prev_inp,
                       'log_prob': scores, 'prob_var': score_var,
                       'input_len': input_len, 'target_len': target_len,
                       'target': targets,

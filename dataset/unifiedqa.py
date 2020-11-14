@@ -207,6 +207,8 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.MixtureRegistry.remove('uq_{}_bt_replace_mix'.format(domain))
+    t5.data.MixtureRegistry.add('uq_{}_bt_replace_mix'.format(domain), ['uq_{}_bt_replace'.format(domain)], default_rate=1.0)
     t5.data.TaskRegistry.add(
       'uq_{}_ret_drqa_3s_bt_replace'.format(domain),
       dataset_fn=functools.partial(

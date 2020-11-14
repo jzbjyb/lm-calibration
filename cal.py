@@ -1,4 +1,4 @@
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Tuple
 import argparse
 import os
 from operator import itemgetter
@@ -103,13 +103,20 @@ def compute_ece(acc_li: List[float], conf_li: List[float], task_li: List[str], m
   return np.mean(overall)
 
 
-def concat_paraphrase(paras: List[List[Union[str, float]]], sep: Union[str, float]):
-  parasc = []
-  for i, para in enumerate(paras):
-    parasc.extend(para)
-    if i < len(paras) - 1:
-      parasc.append(sep)
-  return parasc
+def concat_paraphrase(paras: List[Tuple[str, str, List, List]]):
+  tasks = None
+  inps = None
+  tgts = []
+  logprobs = []
+  for i, (task, inp, tgt, logprob, weight) in enumerate(paras):
+    if i == 0:
+      tasks = task
+      inps = inp
+    tgts.extend(tgt)
+    logprobs.extend(logprob)
+    tgts.append(('({:.3f})' + '&nbsp;' * 6).format(np.exp(np.sum(logprob))))
+    logprobs.append(0.0)
+  return tasks, inps, tgts, logprobs, weight
 
 
 def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
@@ -126,6 +133,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
   target_tokens_li = []
   overlap_ratio_li = []
   logprobs_li = []
+  ind_li = []
 
   if xgb_model_path:
     xgb_model = xgb.Booster()
@@ -142,6 +150,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
 
     sample = samples[0]
     task = sample['task']
+    ind = sample['ind']
     weights = sample['target']
     scores = choose_score([s['log_prob'] for s in samples], weights)
 
@@ -151,14 +160,13 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
         sample['target_len'] = [np.sum(sample['target_len'][i:i+num_bt]) for i in range(0, len(sample['target_len']), num_bt)]
         sample['input_tokens'] = [sample['input_tokens'][i] for i in range(0, len(sample['input_tokens']), num_bt)]
         sample['target_tokens'] = [list(itertools.chain(*sample['target_tokens'][i:i+num_bt])) for i in range(0, len(sample['target_tokens']), num_bt)]
-        sample['logprobs'] = list(zip([sample['logprobs'][i][0] for i in range(0, len(sample['logprobs']), num_bt)],
-                                      [concat_paraphrase([s[1] for s in sample['logprobs'][i:i + num_bt]], sep=' ||| ') for i in range(0, len(sample['logprobs']), num_bt)],
-                                      [concat_paraphrase([s[2] for s in sample['logprobs'][i:i + num_bt]], sep=0.0) for i in range(0, len(sample['logprobs']), num_bt)]))
+        sample['logprobs'] = [concat_paraphrase(sample['logprobs'][i:i + num_bt]) for i in range(0, len(sample['logprobs']), num_bt)]
 
       input_len_li.extend(sample['input_len'])
       target_len_li.extend(sample['target_len'])
       input_tokens_li.extend(sample['input_tokens'])
       target_tokens_li.extend(sample['target_tokens'])
+      ind_li.extend(['{}-{}'.format(task, ind)] * len(sample['input_len']))
       for inp, tar in zip(sample['input_tokens'], sample['target_tokens']):
         inp = set(inp)
         tar = set(tar)
@@ -218,6 +226,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
 
   if ana:
     return {
+      'ind': np.array(ind_li),
       'conf': np.array(conf_li),
       'acc': np.array(acc_li),
       'input_len': np.array(input_len_li),
@@ -227,6 +236,32 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
       'overlap_ratio': np.array(overlap_ratio_li),
       'logprobs': np.array(logprobs_li),
     }
+
+
+def agg_ana_data(data: Dict, key: str, other_li: List):
+  prev_ind = None
+  new_li = []
+  new_ind_li = []
+  cur_collect = []
+  for ind, cur, other in zip(data['ind'], data[key], other_li):
+    if prev_ind is not None and ind != prev_ind:
+      new_li.extend([cur_collect] * len(cur_collect))
+      new_ind_li.extend(list(range(len(cur_collect))))
+      cur_collect = []
+    if type(cur) is list:
+      cur_collect.append(cur + [other])
+    elif type(cur) is np.ndarray:
+      cur_collect.append(cur.tolist() + [other])
+    elif type(cur) is tuple:
+      cur_collect.append(cur + (other,))
+    else:
+      raise ValueError
+    prev_ind = ind
+  if len(cur_collect) > 0:
+    new_li.extend([cur_collect] * len(cur_collect))
+    new_ind_li.extend(list(range(len(cur_collect))))
+  data[key] = np.array(new_li)
+  data[key + '_ind'] = np.array(new_ind_li)
 
 
 _norm = matplotlib.colors.Normalize(vmin=-70, vmax=0)
@@ -246,6 +281,7 @@ def analysis_compare(datas: List[Dict], output: str, topk=100):
   score = -np.array(conf_gain) * (np.array(data1['acc']) * 2 - 1)
   ind = np.argsort(score)[:topk]
 
+  agg_ana_data(data2, 'logprobs', conf_gain)
   display(output, 'improve', data2, ind, conf_gain, acc)
 
 
@@ -265,6 +301,7 @@ def analysis(datas: List[Dict], output: str, topk=100):
   over = np.argsort(-gap)[:topk]
   close = np.argsort(np.abs(gap))[:topk]
 
+  agg_ana_data(data, 'logprobs', conf)
   for ind, ind_name in [(under, 'under'), (over, 'over'), (close, 'close')]:
     display(output, ind_name, data, ind, conf, acc)
 
@@ -274,10 +311,13 @@ def display(output: str, prefix: str, data: Dict, ind: List[int], conf: List[str
     x = data[metric][ind]
     if metric == 'logprobs':
       with open(os.path.join(output, '{}-{}.html'.format(metric, prefix)), 'w') as fout:
-        for (inp, tgt, lps), _conf, _acc in zip(x, conf[ind], acc[ind]):
-          fout.write('<div><div>{}</div>{}</div><hr/>\n'.format(
-            inp.replace('\n', '</br>'), '<div>{} {}</div>'.format(
-              _conf, ' '.join(['<span {}>{}</span>'.format(to_stype(l, _acc == 1), t) for t, l in zip(tgt, lps)]))))
+        for logprobs, logprobs_ind in zip(x, data['logprobs_ind'][ind]):
+          task, inp, _, _, _, _ = logprobs[0]
+          fout.write('<div><div>{}</div><div>{}</div>{}</div><hr/>\n'.format(
+            '&#x25cf; ' + task,
+            inp.replace('\n', '</br>'),
+            ''.join([('<div> ' + ('&#9830;' if j == logprobs_ind else '') +  ' &#8594; {:.3f}' + '&nbsp;' * 10 + '{}</div>').format(
+              _conf, ' '.join(['<span {}>{}</span>'.format(to_stype(l, wei == 1), t) for t, l in zip(tgt, lps)])) for j, (_, _, tgt, lps, wei, _conf), in enumerate(logprobs)])))
       continue
     elif '_tokens' in metric:
       x = np.array([t for ts in x for t in ts])
@@ -307,7 +347,7 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   # build tasks and mixtures
-  build(neg_method='weight', ret_ind=0, ret_method='q-append')
+  build(neg_method='weight', ret_ind=0, ret_method='q-vis')
 
   if args.ana:
     ana_datas = []
