@@ -367,9 +367,25 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
     t5.data.TaskRegistry.add(
+      'uq_{}_decode_uq3B_dedup'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, domain=domain, use_neg=True, neg_method=neg_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
       'uq_{}_decode_uq3B_inp'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_onlyinput_fn, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_GS, domain=domain),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_{}_decode_uq3B_dedup_inp'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_onlyinput_fn, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, domain=domain),
       splits=splits,
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
@@ -383,9 +399,26 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
     t5.data.TaskRegistry.add(
+      'uq_{}_decode_uq3B_dedup_ret_drqa_3s'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_ret, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, domain=domain, ret_ind=ret_ind,
+        ret_method=ret_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
       'uq_{}_decode_uq3B_bt'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_fn, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_GS_BT, domain=domain, use_neg=True, neg_method=neg_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_{}_decode_uq3B_dedup_bt'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_BT, domain=domain, use_neg=True, neg_method=neg_method),
       splits=splits,
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
@@ -400,9 +433,26 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
     t5.data.TaskRegistry.add(
+      'uq_{}_decode_uq3B_dedup_ret_drqa_3s_bt'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_ret, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT, domain=domain, ret_ind=ret_ind,
+        ret_method=ret_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
       'uq_{}_decode_uq3B_ret_drqa_3s_bt_inp'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_onlyinput_fn, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S_BT, domain=domain),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_{}_decode_uq3B_dedup_ret_drqa_3s_bt_inp'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_onlyinput_fn, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT, domain=domain),
       splits=splits,
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
@@ -445,6 +495,15 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
     t5.data.TaskRegistry.add(
+      'uq_{}_decode_ol_uq3B_dedup'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_OL, domain=domain, num_sep=5),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=5)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
       'uq_{}_decode_ol_ans'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_fn_oneline, bucket=UNIFIEDQA_RAW_DECODE_GS_OL_ANS, domain=domain, num_sep=5),
@@ -481,38 +540,64 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_mix', ['uq_{}_decode_ol'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_uq3B_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_uq3B_mix', ['uq_{}_decode_ol_uq3B'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_uq3B_dedup_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_uq3B_dedup_mix', ['uq_{}_decode_ol_uq3B_dedup'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_mix', ['uq_{}_decode_uq3B'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_dedup_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_dedup_mix', ['uq_{}_decode_uq3B_dedup'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_inp_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_inp_mix', ['uq_{}_decode_uq3B_inp'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_dedup_inp_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_dedup_inp_mix', ['uq_{}_decode_uq3B_dedup_inp'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_ans_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_ans_mix', ['uq_{}_decode_ol_ans'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_ol_ans_no_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_ol_ans_no_mix', ['uq_{}_decode_ol_ans_no'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_ret_drqa_3s_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_ret_drqa_3s_mix', ['uq_{}_decode_uq3B_ret_drqa_3s'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_mix', ['uq_{}_decode_uq3B_dedup_ret_drqa_3s'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_bt_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_bt_mix', ['uq_{}_decode_uq3B_bt'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_dedup_bt_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_dedup_bt_mix', ['uq_{}_decode_uq3B_dedup_bt'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_ret_drqa_3s_bt_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_ret_drqa_3s_bt_mix', ['uq_{}_decode_uq3B_ret_drqa_3s_bt'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_bt_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_bt_mix', ['uq_{}_decode_uq3B_dedup_ret_drqa_3s_bt'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_ret_drqa_3s_bt_inp_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_ret_drqa_3s_bt_inp_mix', ['uq_{}_decode_uq3B_ret_drqa_3s_bt_inp'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_bt_inp_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_bt_inp_mix', ['uq_{}_decode_uq3B_dedup_ret_drqa_3s_bt_inp'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
 
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_mix', ['uq_{}_decode'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_mix', ['uq_{}_decode_uq3B'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_dedup_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_dedup_mix', ['uq_{}_decode_uq3B_dedup'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_inp_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_inp_mix', ['uq_{}_decode_uq3B_inp'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_dedup_inp_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_dedup_inp_mix', ['uq_{}_decode_uq3B_dedup_inp'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_ans_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_ans_mix', ['uq_{}_decode_ans'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_ans_no_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_ans_no_mix', ['uq_{}_decode_ans_no'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_ret_drqa_3s_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_ret_drqa_3s_mix', ['uq_{}_decode_uq3B_ret_drqa_3s'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_dedup_ret_drqa_3s_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_dedup_ret_drqa_3s_mix', ['uq_{}_decode_uq3B_dedup_ret_drqa_3s'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_bt_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_bt_mix', ['uq_{}_decode_uq3B_bt'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_dedup_bt_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_dedup_bt_mix', ['uq_{}_decode_uq3B_dedup_bt'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_ret_drqa_3s_bt_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_ret_drqa_3s_bt_mix', ['uq_{}_decode_uq3B_ret_drqa_3s_bt'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_test_uq3B_dedup_ret_drqa_3s_bt_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_test_uq3B_dedup_ret_drqa_3s_bt_mix', ['uq_{}_decode_uq3B_dedup_ret_drqa_3s_bt'.format(domain) for domain, _ in EXT_TEST_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_ret_drqa_3s_bt_inp_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_ret_drqa_3s_bt_inp_mix', ['uq_{}_decode_uq3B_ret_drqa_3s_bt_inp'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_bt_inp_mix')
+  t5.data.MixtureRegistry.add('uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_bt_inp_mix', ['uq_{}_decode_uq3B_dedup_ret_drqa_3s_bt_inp'.format(domain) for domain, _ in EXT_TRAIN_DOMAINS], default_rate=1.0)
