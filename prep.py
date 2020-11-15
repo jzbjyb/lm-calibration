@@ -17,7 +17,10 @@ from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS
   UNIFIEDQA_RAW_DECODE_GS_OL_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS, UNIFIEDQA_RAW_DECODE_GS_ANS_NO, \
   UNIFIEDQA_RAW_DECODE_GS_OL_ANS_NO, UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP
 from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_GS_OL, \
-  UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S_BT
+  UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S, \
+  UNIFIEDQA_RAW_DECODE_UQ3B_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S_BT, \
+  UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_OL, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA, \
+  UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test, TEST_PREP_GS, TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, \
   TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, TEST_PREP_GS_RET_DRQA_3S_BT_REP
@@ -179,10 +182,31 @@ def multi2one_all(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: 
       multi2one(in_fname, out_fname, **kwargs)
 
 
+def dedup_list(texts: List[str], min_count: int):
+  nodup: List[str] = []
+  remain: List[str] = []
+  for text in texts:
+    no = True
+    if len(nodup) > 0 and len(text) > len(nodup[0]) * 5:
+      no = False
+    else:
+      for s in nodup:
+        _text = text.rstrip('.')
+        _s = s.rstrip('.')
+        if _text in _s or _s in _text:
+          no = False
+          break
+    if no:
+      nodup.append(text)
+    else:
+      remain.append(text)
+  return nodup + remain, len(nodup) >= min_count
+
+
 def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
                      split: str, decode_files: List[str], format: str='tsv', beam_size: int=5, keep_size: int=5,
-                     use_lower: bool=False, add_ans: bool=False):
-  count = 0
+                     use_lower: bool=False, add_ans: bool=False, dedup: bool=False):
+  count = has_enough_count = 0
   defins = [open(df) for df in decode_files]
   try:
     for domain, _ in domains:
@@ -197,7 +221,7 @@ def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
           answer = answer.strip()
           if use_lower:
             answer = answer.lower()
-          decodes: Dict[str, int] = defaultdict(lambda: 0)
+          decodes: Dict[str, List[int]] = defaultdict(lambda: [0, 0])
           real_decodes: Dict[str, int] = defaultdict(lambda: 0)
           for defin in defins:
             for b in range(beam_size):
@@ -207,8 +231,10 @@ def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
               real_decodes[de] += 1
               if de == answer or de + '.' == answer or de == answer + '.':  # consider the period
                 continue
-              decodes[de] += 1
-          decodes: List[str] = list(map(itemgetter(0), sorted(decodes.items(), key=lambda x: -x[1])))
+              if de not in decodes:
+                decodes[de][1] = b
+              decodes[de][0] += 1
+          decodes: List[str] = list(map(itemgetter(0), sorted(decodes.items(), key=lambda x: (-x[1][0], x[1][1]))))
           real_decodes: List[str] = list(map(itemgetter(0), sorted(real_decodes.items(), key=lambda x: -x[1])))[:keep_size]
           if add_ans:
             question = '{} \\n {}'.format(question, ' '.join(['({}) {}'.format(IND2CHAR[i], a) for i, a in enumerate(real_decodes)]))
@@ -217,7 +243,12 @@ def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
             for did, de in enumerate(decodes):
               fout.write('{}\t{}\t{}\t{}\n'.format(lid, question, de, 'True'))
           else:
-            decodes = ([answer] + decodes * keep_size)[:keep_size]  # the correct answer is always the first one
+            if dedup:
+              decodes, has_enough = dedup_list([answer] + decodes * keep_size, min_count=keep_size)
+              has_enough_count += int(has_enough)
+              decodes = decodes[:keep_size]
+            else:
+              decodes = ([answer] + decodes * keep_size)[:keep_size]  # the correct answer is always the first one
             assert len(decodes) == keep_size, '#decodes {} {} less than {}'.format(len(decodes), decodes, keep_size)
             for did, de in enumerate(decodes):
               fout.write('{}\t{}\t{}\t{}\n'.format(lid, question, de, 'True' if did == 0 else 'False'))
@@ -225,7 +256,7 @@ def convert_decoding(from_dir: str, to_dir: str, domains: List[Tuple],
     for defin in defins:
       if defin:
         defin.close()
-  print('total count {}'.format(count))
+  print('total count {}, {} has enough dedup'.format(count, has_enough_count))
 
 
 def replace_in_ques_bt(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', splits_restrict: Set[str]=None):
@@ -419,6 +450,8 @@ if __name__ == '__main__':
     truncate_ret_sent(TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, domains=MT_TEST_DOMAINS, num_sent=3)
     retrieve_aug(UNIFIEDQA_RAW_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA, EXT_DOMAINS, splits_restrict={'dev'})
     truncate_ret_sent(UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S, domains=EXT_DOMAINS, num_sent=3)
+    retrieve_aug(UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA, EXT_DOMAINS, splits_restrict={'dev'})
+    truncate_ret_sent(UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, domains=EXT_DOMAINS, num_sent=3)
 
   if task == 'combine_ret_bt':
     combine_ret_bt(UNIFIEDQA_PREP_GS_RET_DRQA_3S, UNIFIEDQA_PREP_GS_BT_REP,
@@ -429,6 +462,9 @@ if __name__ == '__main__':
                    splits_restrict={'test'}, num_bt=5)
     combine_ret_bt(UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_GS_BT,
                    UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S_BT, EXT_DOMAINS,
+                   splits_restrict={'dev'}, num_bt=5)
+    combine_ret_bt(UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_BT,
+                   UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT, EXT_DOMAINS,
                    splits_restrict={'dev'}, num_bt=5)
 
   if task == 'fix_test':
@@ -441,7 +477,14 @@ if __name__ == '__main__':
                      decode_files=['output/decode/unifiedqa/ext_dev/uq_bs20.txt-1100500'], beam_size=20, keep_size=5)
     convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_UQ3B_GS, EXT_DOMAINS, split='train', use_lower=True,
                      decode_files=['output/decode/unifiedqa/ext_train/uq_bs20.txt-1100500'], beam_size=20, keep_size=5)
-    multi2one_all(UNIFIEDQA_RAW_DECODE_GS + '_uq3B', UNIFIEDQA_RAW_DECODE_UQ3B_GS_OL, EXT_DOMAINS, num_sep=5)
+    multi2one_all(UNIFIEDQA_RAW_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_GS_OL, EXT_DOMAINS, num_sep=5)
+
+  if task == 'decode_dedup':
+    convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, EXT_DOMAINS, split='dev', use_lower=True,
+                     decode_files=['output/decode/unifiedqa/ext_dev/uq_bs20.txt-1100500'], beam_size=20, keep_size=5, dedup=True)
+    convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, EXT_DOMAINS, split='train', use_lower=True,
+                     decode_files=['output/decode/unifiedqa/ext_train/uq_bs20.txt-1100500'], beam_size=20, keep_size=5, dedup=True)
+    multi2one_all(UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_OL, EXT_DOMAINS, num_sep=5)
 
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_OL_ANS, EXT_DOMAINS, multiline=False)
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_ANS, EXT_DOMAINS, multiline=True)

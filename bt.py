@@ -108,3 +108,4 @@ bt('data/unifiedqa', 'data/unifiedqa_bt', TRAIN_DOMAINS, bt_count=4, out_count=4
 bt('data/unifiedqa', 'data/unifiedqa_bt', TEST_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
 bt('data/test_prep', 'data/test_prep_bt', [('', ('test',))], bt_count=4, out_count=4, restricted_splits={'test'})
 bt('data/unifiedqa_decode_uq3B', 'data/unifiedqa_decode_uq3B_bt', EXT_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
+bt('data/unifiedqa_decode_uq3B_dedup', 'data/unifiedqa_decode_uq3B_dedup_bt', EXT_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
