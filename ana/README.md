@@ -11,7 +11,9 @@ Retrieved sentences (starts with "retrieved:" if any)
 → Score of each candidate answer (The one starting with "♦" is the one we succeed/fail. Paraphrases are separated by spaces and probabilities are at the end.)
 ```
 For successful cases, the score of each candidate answer has three parts: the raw LM probability before applying this method, the raw LM probability after applying this method, and the gap between them (after normalization).
+
 For failure cases, the score of each candidate answer is the probability.
+
 The best model is using margin-based fine-tuning + paraphrasing + retrieval + temparature-based scaling.
 
 ## Files
