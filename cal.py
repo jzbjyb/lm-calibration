@@ -125,6 +125,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
   real_task_li = []
   acc_li = []
   conf_li = []
+  raw_prob_li = []
   task_li = []
 
   input_len_li = []
@@ -177,7 +178,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
       dtest = convert_data_to_dmatrix({k: np.array([v]) for k, v in sample.items()}, split=0)[0]
       scores = np.log(xgb_model.predict(dtest))  # TODO: ntree_limit=xgb_model.best_ntree_limit
 
-    raw_scores = np.array(scores)
+    raw_scores = np.exp(np.array(scores))
     if norm == 'softmax':
       scores = softmax(np.array(scores) / temp)
     elif norm == 'no':
@@ -208,12 +209,13 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
       _scores = [s / num_bt for s in _scores]
       _scores = softmax(np.array(_scores) / temp)
 
-    for score, weight in zip(_scores, _weights):
+    for score, rscore, weight in zip(_scores, _raw_scores, _weights):
       assert len(np.unique(weight)) == 1, 'wrong correspondence'
       weight = weight[0]
       acc_li.append(weight == 1)
       conf_li.append(score)
       task_li.append(task)
+      raw_prob_li.append(rscore)
     choice = np.argmax(_scores)
     real_acc_li.append(int(_weights[choice][0] == 1))
     real_task_li.append(task)
@@ -228,6 +230,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
     return {
       'ind': np.array(ind_li),
       'conf': np.array(conf_li),
+      'raw_prob': np.array(raw_prob_li),
       'acc': np.array(acc_li),
       'input_len': np.array(input_len_li),
       'target_len': np.array(target_len_li),
@@ -280,6 +283,7 @@ def analysis_compare(datas: List[Dict], output: str, topk=100):
 
   score = -np.array(conf_gain) * (np.array(data1['acc']) * 2 - 1)
   ind = np.argsort(score)[:topk]
+  conf_gain = list(zip(data1['raw_prob'], data2['raw_prob'], data2['conf'] - data1['conf']))
 
   agg_ana_data(data2, 'logprobs', conf_gain)
   display(output, 'improve', data2, ind, conf_gain, acc)
@@ -307,6 +311,11 @@ def analysis(datas: List[Dict], output: str, topk=100):
 
 
 def display(output: str, prefix: str, data: Dict, ind: List[int], conf: List[str], acc: List[int]):
+  def format_conf(conf):
+    if type(conf) not in {list, tuple}:
+      conf = [conf]
+    return ' '.join(['{:.3f}'.format(c) for c in conf])
+
   for metric, xmin, xmax in [('input_len', 0, 512), ('target_len', 0, 128), ('input_tokens', 1000, 30000), ('target_tokens', 1000, 30000), ('logprobs', 0, 0)]:
     x = data[metric][ind]
     if metric == 'logprobs':
@@ -316,8 +325,8 @@ def display(output: str, prefix: str, data: Dict, ind: List[int], conf: List[str
           fout.write('<div><div>{}</div><div>{}</div>{}</div><hr/>\n'.format(
             '&#x25cf; ' + task,
             inp.replace('\n', '</br>'),
-            ''.join([('<div> ' + ('&#9830;' if j == logprobs_ind else '') +  ' &#8594; {:.3f}' + '&nbsp;' * 10 + '{}</div>').format(
-              _conf, ' '.join(['<span {}>{}</span>'.format(to_stype(l, wei == 1), t) for t, l in zip(tgt, lps)])) for j, (_, _, tgt, lps, wei, _conf), in enumerate(logprobs)])))
+            ''.join([('<div> ' + ('&#9830;' if j == logprobs_ind else '') +  ' &#8594; {}' + '&nbsp;' * 10 + '{}</div>').format(
+              format_conf(_conf), ' '.join(['<span {}>{}</span>'.format(to_stype(l, wei == 1), t) for t, l in zip(tgt, lps)])) for j, (_, _, tgt, lps, wei, _conf), in enumerate(logprobs)])))
       continue
     elif '_tokens' in metric:
       x = np.array([t for ts in x for t in ts])
