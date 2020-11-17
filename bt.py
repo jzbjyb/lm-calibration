@@ -39,7 +39,7 @@ def qa_dataset_backtranslate(from_file: str,
                              bt_count: int=1,
                              out_count: int=1):
   assert bt_count >= out_count
-  out_of_bound_count, all_count = 0
+  out_of_bound_count = all_count = 0
   os.makedirs(os.path.dirname(to_file), exist_ok=True)
   with open(from_file, 'r') as fin, open(to_file, 'w') as fout, open(to_file + '.raw', 'w') as fout_raw:
     ans_ind = 0

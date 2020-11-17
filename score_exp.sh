@@ -10,8 +10,10 @@ tpu=$1
 # uq_clean_train_bt uq_clean_train_ret uq_clean_train_ret_bt uq_clean_train_ret_bt_inp
 # test_bt test_ret test_ret_bt test_ret_bt_inp
 
-: '
-for task in uq_clean_test uq_clean_train test uq_clean_test_bt uq_clean_test_ret uq_clean_test_ret_bt uq_clean_test_ret_bt_inp uq_clean_train_inp uq_clean_test_inp uq_clean_train_ret_bt uq_clean_train_ret_bt_inp uq_clean_train_bt uq_clean_train_ret test_bt test_ret test_ret_bt test_inp test_ret_bt_inp; do
+# uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_bt_dedup_inp
+# uq_clean_train_bt_dedup uq_clean_train_ret_bt_dedup uq_clean_train_ret_bt_dedup_inp
+
+for task in uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_bt_dedup_inp uq_clean_train_ret_bt_dedup_inp uq_clean_train_bt_dedup uq_clean_train_ret_bt_dedup; do
     for model in 11B; do
         if [[ $task == 'uq_sub_test' ]]; then
             output_root=output/exp/uq_sub_test/dev
@@ -33,6 +35,10 @@ for task in uq_clean_test uq_clean_train test uq_clean_test_bt uq_clean_test_ret
             output_root=output/exp/uq_clean_test/dev/bt
             mix=uq_clean_test_bt_replace_mix
             split=dev
+        elif [[ $task == 'uq_clean_test_bt_deduo' ]]; then
+            output_root=output/exp/uq_clean_test/dev/bt_dedup
+            mix=uq_clean_test_bt_dedup_replace_mix
+            split=dev
         elif [[ $task == 'uq_clean_test_ret' ]]; then
             output_root=output/exp/uq_clean_test/dev/ret
             mix=uq_clean_test_ret_drqa_3s_mix
@@ -41,9 +47,17 @@ for task in uq_clean_test uq_clean_train test uq_clean_test_bt uq_clean_test_ret
             output_root=output/exp/uq_clean_test/dev/ret_bt
             mix=uq_clean_test_ret_drqa_3s_bt_replace_mix
             split=dev
+        elif [[ $task == 'uq_clean_test_ret_bt_dedup' ]]; then
+            output_root=output/exp/uq_clean_test/dev/ret_bt_dedup
+            mix=uq_clean_test_ret_drqa_3s_bt_dedup_replace_mix
+            split=dev
         elif [[ $task == 'uq_clean_test_ret_bt_inp' ]]; then
             output_root=output/exp/uq_clean_test/dev/ret_bt_inp
             mix=uq_clean_test_ret_drqa_3s_bt_replace_inp_mix
+            split=dev
+        elif [[ $task == 'uq_clean_test_ret_bt_dedup_inp' ]]; then
+            output_root=output/exp/uq_clean_test/dev/ret_bt_dedup_inp
+            mix=uq_clean_test_ret_drqa_3s_bt_dedup_replace_inp_mix
             split=dev
         elif [[ $task == 'uq_clean_train' ]]; then
             output_root=output/exp/uq_clean_train/dev
@@ -57,6 +71,10 @@ for task in uq_clean_test uq_clean_train test uq_clean_test_bt uq_clean_test_ret
             output_root=output/exp/uq_clean_train/dev/bt
             mix=uq_clean_train_bt_replace_mix
             split=dev
+        elif [[ $task == 'uq_clean_train_bt_dedup' ]]; then
+            output_root=output/exp/uq_clean_train/dev/bt_dedup
+            mix=uq_clean_train_bt_dedup_replace_mix
+            split=dev
         elif [[ $task == 'uq_clean_train_ret' ]]; then
             output_root=output/exp/uq_clean_train/dev/ret
             mix=uq_clean_train_ret_drqa_3s_mix
@@ -65,9 +83,17 @@ for task in uq_clean_test uq_clean_train test uq_clean_test_bt uq_clean_test_ret
             output_root=output/exp/uq_clean_train/dev/ret_bt
             mix=uq_clean_train_ret_drqa_3s_bt_replace_mix
             split=dev
+        elif [[ $task == 'uq_clean_train_ret_bt_dedup' ]]; then
+            output_root=output/exp/uq_clean_train/dev/ret_bt_dedup
+            mix=uq_clean_train_ret_drqa_3s_bt_dedup_replace_mix
+            split=dev
         elif [[ $task == 'uq_clean_train_ret_bt_inp' ]]; then
             output_root=output/exp/uq_clean_train/dev/ret_bt_inp
             mix=uq_clean_train_ret_drqa_3s_bt_replace_inp_mix
+            split=dev
+        elif [[ $task == 'uq_clean_train_ret_bt_dedup_inp' ]]; then
+            output_root=output/exp/uq_clean_train/dev/ret_bt_dedup_inp
+            mix=uq_clean_train_ret_drqa_3s_bt_dedup_replace_inp_mix
             split=dev
         elif [[ $task == 'test' ]]; then
             output_root=output/exp/test/test
@@ -109,7 +135,7 @@ for task in uq_clean_test uq_clean_train test uq_clean_test_bt uq_clean_test_ret
         fi
     done
 done
-'
+
 
 # ext
 
@@ -120,6 +146,7 @@ done
 # uq_ext_train_ret_bt uq_ext_test_ret_bt
 # uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp
 
+: '
 for task in uq_ext_train_bt uq_ext_test_bt uq_ext_train_ret_bt uq_ext_test_ret_bt uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp; do
     for model in 3B; do
         if [[ $task == 'uq_ext_train' ]]; then
@@ -186,3 +213,4 @@ for task in uq_ext_train_bt uq_ext_test_bt uq_ext_train_ret_bt uq_ext_test_ret_b
         fi
     done
 done
+'
