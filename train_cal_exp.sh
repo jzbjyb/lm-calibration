@@ -32,11 +32,15 @@ done
 # ext
 
 for model_type in 3B; do
-    for train_set in uq_ext_train uq_ext_test; do
+    for train_set in uq_ext_train_dedup uq_ext_test_dedup; do
         if [[ $train_set == 'uq_ext_train' ]]; then
             mix=uq_ext_decode_train_uq3B_mix
         elif [[ $train_set == 'uq_ext_test' ]]; then
             mix=uq_ext_decode_test_uq3B_mix
+        elif [[ $train_set == 'uq_ext_train_dedup' ]]; then
+            mix=uq_ext_decode_train_uq3B_dedup_mix
+        elif [[ $train_set == 'uq_ext_test_dedup' ]]; then
+            mix=uq_ext_decode_test_uq3B_dedup_mix
         fi
 
         # temp

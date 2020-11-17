@@ -39,8 +39,9 @@ def qa_dataset_backtranslate(from_file: str,
                              bt_count: int=1,
                              out_count: int=1):
   assert bt_count >= out_count
+  out_of_bound_count, all_count = 0
   os.makedirs(os.path.dirname(to_file), exist_ok=True)
-  with open(from_file, 'r') as fin, open(to_file, 'w') as fout:
+  with open(from_file, 'r') as fin, open(to_file, 'w') as fout, open(to_file + '.raw', 'w') as fout_raw:
     ans_ind = 0
     prev_qid = None
     for lid, l in tqdm(enumerate(fin)):
@@ -54,17 +55,20 @@ def qa_dataset_backtranslate(from_file: str,
       tok1_bpe = trans1.apply_bpe(tok1)
       tok1_bin = trans1.binarize(tok1_bpe)
 
-      tok2_bins = trans1.generate(tok1_bin, beam=bt_count, sampling=True, sampling_topk=20)
+      tok2_bins = trans1.generate(tok1_bin, beam=bt_count)
       tok2_bins = [tok2_bin['tokens'].cpu() for tok2_bin in tok2_bins]
 
       bts: Dict[str, int] = defaultdict(lambda: 0)
-      tok1_binss = trans2.generate(tok2_bins, beam=bt_count, sampling=True, sampling_topk=20)
+      bts_li: List[str] = []
+      tok1_binss = trans2.generate(tok2_bins, beam=bt_count)
       for tok1_bins in tok1_binss:
         for tok1_bin in tok1_bins:
           tok1_bpe = trans2.string(tok1_bin['tokens'])
           tok1 = trans2.remove_bpe(tok1_bpe)
           an = trans2.detokenize(tok1)
           bts[an] += 1
+          bts_li.append(an)
+          fout_raw.write('{}\t{}\t{}\t{}\n'.format('{}-{}'.format(qid, ans_ind), question, an, correct))
 
       # remove the original sentence if possible
       if answer in bts:
@@ -75,8 +79,13 @@ def qa_dataset_backtranslate(from_file: str,
       bts = sorted(bts.items(), key=lambda x: -x[1])
       c = out_count
       ind = 0
+      all_count += 1
+      out_of_bound = False
       while c > 0:
         if ind >= len(bts) or bts[ind][1] <= 0:
+          if not out_of_bound:
+            out_of_bound_count += 1
+            out_of_bound = True
           ind = 0
         assert bts[ind][1] > 0, 'back translations are exhausted'
         fout.write('{}\t{}\t{}\t{}\n'.format('{}-{}'.format(qid, ans_ind), question, bts[ind][0], correct))
@@ -85,6 +94,7 @@ def qa_dataset_backtranslate(from_file: str,
         c -= 1
 
       prev_qid = qid
+  return out_of_bound_count, all_count
 
 
 def bt(from_dir, to_dir, domains: List[Tuple[str, Tuple]], format: str='tsv', restricted_splits=None, **kwargs):
@@ -100,12 +110,12 @@ def bt(from_dir, to_dir, domains: List[Tuple[str, Tuple]], format: str='tsv', re
         continue
       in_fname = os.path.join(from_dir, domain, split + '.' + format)
       out_fname = os.path.join(to_dir, domain, split + '.' + format)
-      print('{} -> {}'.format(in_fname, out_fname), flush=True)
-      qa_dataset_backtranslate(in_fname, out_fname, trans1=en2de, trans2=de2en, **kwargs)
+      ooc, ac = qa_dataset_backtranslate(in_fname, out_fname, trans1=en2de, trans2=de2en, **kwargs)
+      print('{} -> {}, {} out of bound from {}'.format(in_fname, out_fname, ooc, ac), flush=True)
 
 
-bt('data/unifiedqa', 'data/unifiedqa_bt', TRAIN_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
-bt('data/unifiedqa', 'data/unifiedqa_bt', TEST_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
-bt('data/test_prep', 'data/test_prep_bt', [('', ('test',))], bt_count=4, out_count=4, restricted_splits={'test'})
-bt('data/unifiedqa_decode_uq3B', 'data/unifiedqa_decode_uq3B_bt', EXT_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
-bt('data/unifiedqa_decode_uq3B_dedup', 'data/unifiedqa_decode_uq3B_dedup_bt', EXT_DOMAINS, bt_count=4, out_count=4, restricted_splits={'dev'})
+bt('data/unifiedqa', 'data/unifiedqa_bt_dedup', TEST_DOMAINS, bt_count=10, out_count=4, restricted_splits={'dev'})
+bt('data/unifiedqa', 'data/unifiedqa_bt_dedup', TRAIN_DOMAINS, bt_count=10, out_count=4, restricted_splits={'dev'})
+bt('data/test_prep', 'data/test_prep_bt_dedup', [('', ('test',))], bt_count=10, out_count=4, restricted_splits={'test'})
+bt('data/unifiedqa_decode_uq3B', 'data/unifiedqa_decode_uq3B_bt_dedup', EXT_DOMAINS, bt_count=10, out_count=4, restricted_splits={'dev'})
+bt('data/unifiedqa_decode_uq3B_dedup', 'data/unifiedqa_decode_uq3B_dedup_bt_dedup', EXT_DOMAINS, bt_count=10, out_count=4, restricted_splits={'dev'})

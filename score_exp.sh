@@ -120,7 +120,7 @@ done
 # uq_ext_train_ret_bt uq_ext_test_ret_bt
 # uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp
 
-for task in uq_ext_train_inp uq_ext_test_inp uq_ext_train_ret uq_ext_test_ret; do
+for task in uq_ext_train_bt uq_ext_test_bt uq_ext_train_ret_bt uq_ext_test_ret_bt uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp; do
     for model in 3B; do
         if [[ $task == 'uq_ext_train' ]]; then
             output_root=output/exp/uq_ext_train_dedup/dev
