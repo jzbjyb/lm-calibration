@@ -1080,6 +1080,9 @@ class Unitransformer(object):
         mtf.to_int32(mtf.not_equal(inputs, 0)), reduced_dim=length_dim)
     sequence_id = 1 if encoder_sequence_id is not None else None
 
+    temperature = [mtf.to_float(mtf.ones_like(initial_position)) * temperature]
+    temperature = temperature[0]
+
     length_range = mtf.range(inputs.mesh, length_dim, tf.int32)
     if self.input_full_attention:
       read_priority = write_priority = length_range * mtf.to_int32(
@@ -1124,7 +1127,7 @@ class Unitransformer(object):
           mtf.to_int32(mtf.equal(partial_sequences, stop_at_token)),
           reduced_dim=length_dim)
 
-    def cond_fn(position, ids, *unused_states):
+    def cond_fn(position, ids, cur_temp, *unused_states):
       """Should we run another loop iteration."""
       past_end = mtf.greater_equal(position, length_dim.size)
       if max_steps:
@@ -1141,7 +1144,7 @@ class Unitransformer(object):
       all_done = mtf.reduce_all(is_done)
       return mtf.logical_not(all_done)
 
-    def body_fn(position, ids, *states):
+    def body_fn(position, ids, cur_temp, *states):
       """One step in the decode loop."""
       inputs_this_step = mtf.gather(ids, position - 1, length_dim)
       # Setting proper bos_id for position == 0. No-op otherwise.
@@ -1191,12 +1194,12 @@ class Unitransformer(object):
                            mtf.ones_like(logits)*-1e6, logits)
 
       ids_this_step = mtf.sample_with_temperature(
-          logits, self.output_vocab_dim, temperature)
+          logits, self.output_vocab_dim, cur_temp)
       new_position = position + 1
       new_ids = ids + ids_this_step * mtf.one_hot(
           position, length_dim, dtype=tf.int32)
-      return [new_position, new_ids] + context_incremental.new_states
-    while_loop_inputs = [initial_position, inputs] + initial_states
+      return [new_position, new_ids, mtf.ones_like(cur_temp)] + context_incremental.new_states
+    while_loop_inputs = [initial_position, inputs, temperature] + initial_states
     final_position, outputs = mtf.while_loop(
         cond_fn, body_fn, while_loop_inputs)[:2]
     del final_position

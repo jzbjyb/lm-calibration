@@ -21,7 +21,8 @@ from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE
   UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S, \
   UNIFIEDQA_RAW_DECODE_UQ3B_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S_BT, \
   UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_OL, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA, \
-  UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT
+  UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_BT, \
+  UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT, UNIFIEDQA_RAW_DUP_GS
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test, TEST_PREP_GS, TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, \
   TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, TEST_PREP_GS_RET_DRQA_3S_BT_REP
@@ -425,6 +426,18 @@ def fix_test(fom_bk: str, to_bk: str, domains: List[Tuple[str, List]], format: s
           fout.write('\t'.join([ind, inp] + ls[2:]) + '\n')
 
 
+def duplicate(fom_bk: str, to_bk: str, domains: List[Tuple[str, List]], format: str='tsv', dup_count: int=1):
+  for domain, splits in domains:
+    for split in splits:
+      in_fname = os.path.join(fom_bk, domain, split + '.' + format)
+      out_fname = os.path.join(to_bk, domain, split + '.' + format)
+      print(in_fname, out_fname)
+      with tf.io.gfile.GFile(in_fname, 'r') as fin, tf.io.gfile.GFile(out_fname, 'w') as fout:
+        for l in fin:
+          for i in range(dup_count):
+            fout.write(l)
+
+
 if __name__ == '__main__':
   task = sys.argv[1]
 
@@ -490,6 +503,9 @@ if __name__ == '__main__':
     convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, EXT_DOMAINS, split='train', use_lower=True,
                      decode_files=['output/decode/unifiedqa/ext_train/uq_bs20.txt-1100500'], beam_size=20, keep_size=5, dedup=True)
     multi2one_all(UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_OL, EXT_DOMAINS, num_sep=5)
+
+  if task == 'dup':
+    duplicate(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DUP_GS, EXT_DOMAINS, dup_count=10)
 
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_OL_ANS, EXT_DOMAINS, multiline=False)
   #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_ANS, EXT_DOMAINS, multiline=True)

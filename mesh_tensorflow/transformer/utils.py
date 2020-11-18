@@ -1038,7 +1038,8 @@ def encode_delimited_lm(inputs,
 def decode(estimator,
            input_fn,
            vocabulary,
-           checkpoint_path=None):
+           checkpoint_path=None,
+           filename=None):
   """Decode from an input_fn.
 
   Args:
@@ -1068,16 +1069,21 @@ def decode(estimator,
     return _values
 
   decodes = []
-  for i, result in enumerate(result_iter):
-    input_string = _maybe_detokenize(
-        result["inputs"], inputs_vocabulary(vocabulary))
-    output_string = _maybe_detokenize(
-        result["outputs"], targets_vocabulary(vocabulary))
-    decodes.extend(output_string)
-    if i & (i - 1) == 0:
-      # LOG every power of 2.
-      tf.logging.info("decoded {}: {}".format(i, input_string))
-      tf.logging.info("            -> {}".format(output_string))
+  if tf.io.gfile.exists(filename):
+    tf.io.gfile.remove(filename)
+  with tf.io.gfile.GFile(filename, "w") as fout:
+    for i, result in enumerate(result_iter):
+      input_string = _maybe_detokenize(
+          result["inputs"], inputs_vocabulary(vocabulary))
+      output_string = _maybe_detokenize(
+          result["outputs"], targets_vocabulary(vocabulary))
+      decodes.extend(output_string)
+      for os in output_string:
+        fout.write("{}\n".format(os))
+      if i & (i - 1) == 0:
+        # LOG every power of 2.
+        tf.logging.info("decoded {}: {}".format(i, input_string))
+        tf.logging.info("            -> {}".format(output_string))
   return decodes
 
 
@@ -1201,13 +1207,8 @@ def decode_from_task(estimator,
 
   checkpoint_step = get_step_from_checkpoint_path(checkpoint_path)
   decodes = decode(
-      estimator, input_fn, vocabulary, checkpoint_path=checkpoint_path)
-
-  # Remove any padded examples
-  #dataset_size = len(inputs) * repeats
-  #decodes = decodes[:dataset_size]
-  output_filename = "{}-{}".format(output_filename, checkpoint_step)
-  write_lines_to_file(decodes, output_filename)
+    estimator, input_fn, vocabulary, checkpoint_path=checkpoint_path,
+    filename="{}-{}".format(output_filename, checkpoint_step))
 
 
 @gin.configurable

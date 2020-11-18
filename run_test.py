@@ -21,10 +21,12 @@ if __name__ == '__main__':
   build()
 
   # test
-  mix = t5.data.MixtureRegistry.get('uq_sub_test_ret_drqa_3s_mix')
-  ds = mix.get_dataset(split='dev', sequence_length={'inputs': 512, 'targets': 512}, shuffle=False, use_filter=False)
+  mix = t5.data.MixtureRegistry.get('uq_ext_dup_mix')
+  ds = mix.get_dataset_in_order(split='dev', sequence_length={'inputs': 512, 'targets': 128}, shuffle=False)
   print('======= A few preprocessed dev examples =======')
-  for ex in tfds.as_numpy(ds.take(5)):
+  for i, ex in enumerate(ds):
+    if i >= 5:
+      break
     print(ex)
 
   # run

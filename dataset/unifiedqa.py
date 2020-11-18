@@ -4,7 +4,8 @@ import tensorflow as tf
 import t5
 import gin
 from .utils import trivia_preprocessor, qa_dataset_fn, qa_dataset_fn_oneline, \
-  qa_dataset_fn_onlycorrect, concat_preprocessor, qa_dataset_fn_ret, qa_dataset_onlyinput_fn
+  qa_dataset_fn_onlycorrect, concat_preprocessor, qa_dataset_fn_ret, qa_dataset_onlyinput_fn, \
+  qa_dataset_fn_onlycorrect_multi
 
 
 UNIFIEDQA_GS = 'gs://unifiedqa/data'
@@ -12,6 +13,7 @@ UNIFIEDQA_PREP_GS = 'gs://neulab-qa/data/unifiedqa'
 UNIFIEDQA_PREP_GS_RET_DRQA = 'gs://neulab-qa/data/unifiedqa_ret_drqa'
 UNIFIEDQA_PREP_GS_RET_DRQA_3S = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s'
 UNIFIEDQA_RAW_GS = 'gs://neulab-qa/unifiedqa/data'
+UNIFIEDQA_RAW_DUP_GS = 'gs://neulab-qa/data/unifiedqa_dup'
 UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
 UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt'
 UNIFIEDQA_PREP_GS_BT_DEDUP = 'gs://neulab-qa/data/unifiedqa_bt_dedup'
@@ -365,6 +367,13 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       text_preprocessor=[trivia_preprocessor],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_{}_oc_dup'.format(domain),
+      dataset_fn=functools.partial(qa_dataset_fn_onlycorrect, bucket=UNIFIEDQA_RAW_DUP_GS, domain=domain),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
 
     # multi-line tasks
     t5.data.TaskRegistry.add(
@@ -565,6 +574,8 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
 
   t5.data.MixtureRegistry.remove('uq_ext_mix')
   t5.data.MixtureRegistry.add('uq_ext_mix', ['uq_{}_oc'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_ext_dup_mix')
+  t5.data.MixtureRegistry.add('uq_ext_dup_mix', ['uq_{}_oc_dup'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)
 
   t5.data.MixtureRegistry.remove('uq_ext_decode_mix')
   t5.data.MixtureRegistry.add('uq_ext_decode_mix', ['uq_{}_decode'.format(domain) for domain, _ in EXT_DOMAINS], default_rate=1.0)
