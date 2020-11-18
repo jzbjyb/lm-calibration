@@ -23,6 +23,9 @@ from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE
   UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_OL, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA, \
   UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_BT, \
   UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT, UNIFIEDQA_RAW_DUP_GS
+from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_OL, \
+  UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S, \
+  UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S_BT
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test, TEST_PREP_GS, TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, \
   TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, TEST_PREP_GS_RET_DRQA_3S_BT_REP
@@ -467,6 +470,8 @@ if __name__ == '__main__':
     truncate_ret_sent(UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S, domains=EXT_DOMAINS, num_sent=3)
     retrieve_aug(UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA, EXT_DOMAINS, splits_restrict={'dev'})
     truncate_ret_sent(UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, domains=EXT_DOMAINS, num_sent=3)
+    retrieve_aug(UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA, EXT_DOMAINS, splits_restrict={'dev'})
+    truncate_ret_sent(UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S, domains=EXT_DOMAINS, num_sent=3)
 
   if task == 'combine_ret_bt':
     combine_ret_bt(UNIFIEDQA_PREP_GS_RET_DRQA_3S, UNIFIEDQA_PREP_GS_BT_REP,
@@ -483,6 +488,9 @@ if __name__ == '__main__':
                    splits_restrict={'dev'}, num_bt=5)
     combine_ret_bt(UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_BT,
                    UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT, EXT_DOMAINS,
+                   splits_restrict={'dev'}, num_bt=5)
+    combine_ret_bt(UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_BT,
+                   UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S_BT, EXT_DOMAINS,
                    splits_restrict={'dev'}, num_bt=5)
 
   if task == 'fix_test':
@@ -503,6 +511,13 @@ if __name__ == '__main__':
     convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, EXT_DOMAINS, split='train', use_lower=True,
                      decode_files=['output/decode/unifiedqa/ext_train/uq_bs20.txt-1100500'], beam_size=20, keep_size=5, dedup=True)
     multi2one_all(UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_OL, EXT_DOMAINS, num_sep=5)
+
+  if task == 'decode_sample':
+    convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, EXT_DOMAINS, split='dev', use_lower=True,
+                     decode_files=['output/decode/unifiedqa/ext_dev/uq_dup.txt-1100500'], beam_size=10, keep_size=5, dedup=True)
+    convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, EXT_DOMAINS, split='train', use_lower=True,
+                     decode_files=['output/decode/unifiedqa/ext_train/uq_dup.txt-1100500'], beam_size=10, keep_size=5, dedup=True)
+    multi2one_all(UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_OL, EXT_DOMAINS, num_sep=5)
 
   if task == 'dup':
     duplicate(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DUP_GS, EXT_DOMAINS, dup_count=10)

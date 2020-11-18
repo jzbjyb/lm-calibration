@@ -43,6 +43,13 @@ UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S = 'gs://neulab-qa/data/unifiedqa_
 UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_BT = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_dedup_bt'
 UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_dedup_ret_drqa_3s_ret'
 
+UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_sample'
+UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_OL = 'gs://neulab-qa/data/unifiedqa_decode_ol_uq3B_sample'
+UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_sample_ret_drqa'
+UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_sample_ret_drqa_3s'
+UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_BT = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_sample_bt'
+UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S_BT = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_sample_ret_drqa_3s_ret'
+
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
                  ('openbookqa', ('train', 'dev', 'test')),
