@@ -490,6 +490,7 @@ if __name__ == '__main__':
     fix_test(TEST_PREP_GS + '.bak', TEST_PREP_GS, MT_TEST_DOMAINS)
     fix_test(TEST_PREP_GS_RET_DRQA + '.bak', TEST_PREP_GS_RET_DRQA, MT_TEST_DOMAINS)
     fix_test(TEST_PREP_GS_BT + '.bak', TEST_PREP_GS_BT, MT_TEST_DOMAINS, num_bt=5)
+    fix_test(TEST_PREP_GS_BT_DEDUP + '.bak', TEST_PREP_GS_BT_DEDUP, MT_TEST_DOMAINS, num_bt=5)
 
   if task == 'decode':
     convert_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_UQ3B_GS, EXT_DOMAINS, split='dev', use_lower=True,
