@@ -444,18 +444,6 @@ def duplicate(fom_bk: str, to_bk: str, domains: List[Tuple[str, List]], format: 
 if __name__ == '__main__':
   task = sys.argv[1]
 
-  # combine('test', 'test.prep')
-  # get_input('test.prep', 'test.prep.input')
-  # get_input_unifiedqa('test.prep', 'test.prep.unifiedqa_input')
-
-  #acc('test.prep/test.csv', 'test.prep.unifiedqa_input/test_target.txt', 'output/answer/unifiedqa_test_score.txt')
-
-  #convert_uq(UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, DOMAINS)
-
-  #convert_uq(UNIFIEDQA_GS, UNIFIEDQA_PREP_GS_OL, DOMAINS, oneline=True, num_sep=len(MULTI_CHOICE))
-
-  #one2multi_test()
-
   if task == 'bt':
     replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, DOMAINS, splits_restrict={'dev'})
     replace_in_ques_bt(TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, MT_TEST_DOMAINS, splits_restrict={'test'})
@@ -521,6 +509,3 @@ if __name__ == '__main__':
 
   if task == 'dup':
     duplicate(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DUP_GS, EXT_DOMAINS, dup_count=10)
-
-  #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_OL_ANS, EXT_DOMAINS, multiline=False)
-  #convert_ol_to_add_answers(UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_RAW_DECODE_GS_ANS, EXT_DOMAINS, multiline=True)

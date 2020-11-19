@@ -13,8 +13,9 @@ tpu=$1
 # uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_bt_dedup_inp
 # uq_clean_train_bt_dedup uq_clean_train_ret_bt_dedup uq_clean_train_ret_bt_dedup_inp
 
+: '
 for task in uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_bt_dedup_inp uq_clean_train_ret_bt_dedup_inp uq_clean_train_bt_dedup uq_clean_train_ret_bt_dedup; do
-    for model in 11B; do
+    for model in 3B; do
         if [[ $task == 'uq_sub_test' ]]; then
             output_root=output/exp/uq_sub_test/dev
             mix=uq_sub_test_mix
@@ -35,7 +36,7 @@ for task in uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_
             output_root=output/exp/uq_clean_test/dev/bt
             mix=uq_clean_test_bt_replace_mix
             split=dev
-        elif [[ $task == 'uq_clean_test_bt_deduo' ]]; then
+        elif [[ $task == 'uq_clean_test_bt_dedup' ]]; then
             output_root=output/exp/uq_clean_test/dev/bt_dedup
             mix=uq_clean_test_bt_dedup_replace_mix
             split=dev
@@ -135,7 +136,7 @@ for task in uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_
         fi
     done
 done
-
+'
 
 # ext
 
@@ -146,56 +147,56 @@ done
 # uq_ext_train_ret_bt uq_ext_test_ret_bt
 # uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp
 
-: '
-for task in uq_ext_train_bt uq_ext_test_bt uq_ext_train_ret_bt uq_ext_test_ret_bt uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp; do
+suffix='_sample'
+for task in uq_ext_test uq_ext_test_ret uq_ext_train uq_ext_train_ret uq_ext_test_inp uq_ext_train_inp; do
     for model in 3B; do
         if [[ $task == 'uq_ext_train' ]]; then
-            output_root=output/exp/uq_ext_train_dedup/dev
-            mix=uq_ext_decode_train_uq3B_dedup_mix
+            output_root=output/exp/uq_ext_train${suffix}/dev
+            mix=uq_ext_decode_train_uq3B${suffix}_mix
             split=dev
         elif [[ $task == 'uq_ext_train_inp' ]]; then
-            output_root=output/exp/uq_ext_train_dedup/dev/inp
-            mix=uq_ext_decode_train_uq3B_dedup_inp_mix
+            output_root=output/exp/uq_ext_train${suffix}/dev/inp
+            mix=uq_ext_decode_train_uq3B${suffix}_inp_mix
             split=dev
         elif [[ $task == 'uq_ext_train_ret' ]]; then
-            output_root=output/exp/uq_ext_train_dedup/dev/ret
-            mix=uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_mix
+            output_root=output/exp/uq_ext_train${suffix}/dev/ret
+            mix=uq_ext_decode_train_uq3B${suffix}_ret_drqa_3s_mix
             split=dev
         elif [[ $task == 'uq_ext_train_bt' ]]; then
-            output_root=output/exp/uq_ext_train_dedup/dev/bt
-            mix=uq_ext_decode_train_uq3B_dedup_bt_mix
+            output_root=output/exp/uq_ext_train${suffix}/dev/bt
+            mix=uq_ext_decode_train_uq3B${suffix}_bt_mix
             split=dev
         elif [[ $task == 'uq_ext_train_ret_bt' ]]; then
-            output_root=output/exp/uq_ext_train_dedup/dev/ret_bt
-            mix=uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_bt_mix
+            output_root=output/exp/uq_ext_train${suffix}/dev/ret_bt
+            mix=uq_ext_decode_train_uq3B${suffix}_ret_drqa_3s_bt_mix
             split=dev
         elif [[ $task == 'uq_ext_train_ret_bt_inp' ]]; then
-            output_root=output/exp/uq_ext_train_dedup/dev/ret_bt_inp
-            mix=uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_bt_inp_mix
+            output_root=output/exp/uq_ext_train${suffix}/dev/ret_bt_inp
+            mix=uq_ext_decode_train_uq3B${suffix}_ret_drqa_3s_bt_inp_mix
             split=dev
         elif [[ $task == 'uq_ext_test' ]]; then
-            output_root=output/exp/uq_ext_test_dedup/dev
-            mix=uq_ext_decode_test_uq3B_dedup_mix
+            output_root=output/exp/uq_ext_test${suffix}/dev
+            mix=uq_ext_decode_test_uq3B${suffix}_mix
             split=dev
         elif [[ $task == 'uq_ext_test_inp' ]]; then
-            output_root=output/exp/uq_ext_test_dedup/dev/inp
-            mix=uq_ext_decode_test_uq3B_dedup_inp_mix
+            output_root=output/exp/uq_ext_test${suffix}/dev/inp
+            mix=uq_ext_decode_test_uq3B${suffix}_inp_mix
             split=dev
         elif [[ $task == 'uq_ext_test_ret' ]]; then
-            output_root=output/exp/uq_ext_test_dedup/dev/ret
-            mix=uq_ext_decode_test_uq3B_dedup_ret_drqa_3s_mix
+            output_root=output/exp/uq_ext_test${suffix}/dev/ret
+            mix=uq_ext_decode_test_uq3B${suffix}_ret_drqa_3s_mix
             split=dev
         elif [[ $task == 'uq_ext_test_bt' ]]; then
-            output_root=output/exp/uq_ext_test_dedup/dev/bt
-            mix=uq_ext_decode_test_uq3B_dedup_bt_mix
+            output_root=output/exp/uq_ext_test${suffix}/dev/bt
+            mix=uq_ext_decode_test_uq3B${suffix}_bt_mix
             split=dev
         elif [[ $task == 'uq_ext_test_ret_bt' ]]; then
-            output_root=output/exp/uq_ext_test_dedup/dev/ret_bt
-            mix=uq_ext_decode_test_uq3B_dedup_ret_drqa_3s_bt_mix
+            output_root=output/exp/uq_ext_test${suffix}/dev/ret_bt
+            mix=uq_ext_decode_test_uq3B${suffix}_ret_drqa_3s_bt_mix
             split=dev
         elif [[ $task == 'uq_ext_test_ret_bt_inp' ]]; then
-            output_root=output/exp/uq_ext_test_dedup/dev/ret_bt_inp
-            mix=uq_ext_decode_test_uq3B_dedup_ret_drqa_3s_bt_inp_mix
+            output_root=output/exp/uq_ext_test${suffix}/dev/ret_bt_inp
+            mix=uq_ext_decode_test_uq3B${suffix}_ret_drqa_3s_bt_inp_mix
             split=dev
         fi
 
@@ -213,4 +214,4 @@ for task in uq_ext_train_bt uq_ext_test_bt uq_ext_train_ret_bt uq_ext_test_ret_b
         fi
     done
 done
-'
+
