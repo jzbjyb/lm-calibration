@@ -12,9 +12,10 @@ tpu=$1
 
 # uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_bt_dedup_inp
 # uq_clean_train_bt_dedup uq_clean_train_ret_bt_dedup uq_clean_train_ret_bt_dedup_inp
+# test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp
 
-: '
-for task in uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_bt_dedup_inp uq_clean_train_ret_bt_dedup_inp uq_clean_train_bt_dedup uq_clean_train_ret_bt_dedup; do
+
+for task in test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp; do
     for model in 3B; do
         if [[ $task == 'uq_sub_test' ]]; then
             output_root=output/exp/uq_sub_test/dev
@@ -108,6 +109,10 @@ for task in uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_
             output_root=output/exp/test/test/bt
             mix=test_bt_replace_mix
             split=test
+        elif [[ $task == 'test_bt_dedup' ]]; then
+            output_root=output/exp/test/test/bt_dedup
+            mix=test_bt_dedup_replace_mix
+            split=test
         elif [[ $task == 'test_ret' ]]; then
             output_root=output/exp/test/test/ret
             mix=test_ret_drqa_3s_mix
@@ -116,9 +121,17 @@ for task in uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_
             output_root=output/exp/test/test/ret_bt
             mix=test_ret_drqa_3s_bt_replace_mix
             split=test
+        elif [[ $task == 'test_ret_bt_dedup' ]]; then
+            output_root=output/exp/test/test/ret_bt_dedup
+            mix=test_ret_drqa_3s_bt_dedup_replace_mix
+            split=test
         elif [[ $task == 'test_ret_bt_inp' ]]; then
             output_root=output/exp/test/test/ret_bt_inp
             mix=test_ret_drqa_3s_bt_replace_inp_mix
+            split=test
+        elif [[ $task == 'test_ret_bt_dedup_inp' ]]; then
+            output_root=output/exp/test/test/ret_bt_dedup_inp
+            mix=test_ret_drqa_3s_bt_dedup_replace_inp_mix
             split=test
         fi
 
@@ -136,7 +149,7 @@ for task in uq_clean_test_bt_dedup uq_clean_test_ret_bt_dedup uq_clean_test_ret_
         fi
     done
 done
-'
+
 
 # ext
 
@@ -214,4 +227,3 @@ for task in uq_ext_test uq_ext_test_ret uq_ext_train uq_ext_train_ret uq_ext_tes
         fi
     done
 done
-

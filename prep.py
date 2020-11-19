@@ -28,7 +28,8 @@ from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, UNIFIEDQA_RAW
   UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S_BT
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test, TEST_PREP_GS, TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, \
-  TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, TEST_PREP_GS_RET_DRQA_3S_BT_REP
+  TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, TEST_PREP_GS_RET_DRQA_3S_BT_REP, TEST_PREP_GS_BT_DEDUP, \
+  TEST_PREP_GS_BT_DEDUP_REP, TEST_PREP_GS_RET_DRQA_3S_BT_DEDUP_REP
 from dataset.test import DOMAINS as MT_TEST_DOMAINS
 
 SEED = 2021
@@ -448,6 +449,7 @@ if __name__ == '__main__':
     replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP, DOMAINS, splits_restrict={'dev'})
     replace_in_ques_bt(TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, MT_TEST_DOMAINS, splits_restrict={'test'})
     replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT_DEDUP, UNIFIEDQA_PREP_GS_BT_DEDUP_REP, DOMAINS, splits_restrict={'dev'})
+    replace_in_ques_bt(TEST_PREP_GS_BT_DEDUP, TEST_PREP_GS_BT_DEDUP_REP, MT_TEST_DOMAINS, splits_restrict={'test'})
 
   if task == 'ret':
     retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA, DOMAINS, splits_restrict={'train', 'dev', 'test'})
@@ -470,6 +472,9 @@ if __name__ == '__main__':
                    splits_restrict={'dev'}, num_bt=5)
     combine_ret_bt(TEST_PREP_GS_RET_DRQA_3S, TEST_PREP_GS_BT_REP,
                    TEST_PREP_GS_RET_DRQA_3S_BT_REP, MT_TEST_DOMAINS,
+                   splits_restrict={'test'}, num_bt=5)
+    combine_ret_bt(TEST_PREP_GS_RET_DRQA_3S, TEST_PREP_GS_BT_DEDUP_REP,
+                   TEST_PREP_GS_RET_DRQA_3S_BT_DEDUP_REP, MT_TEST_DOMAINS,
                    splits_restrict={'test'}, num_bt=5)
     combine_ret_bt(UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_GS_BT,
                    UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S_BT, EXT_DOMAINS,
