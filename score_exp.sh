@@ -159,7 +159,7 @@ done
 # uq_ext_train_bt uq_ext_test_bt
 # uq_ext_train_ret_bt uq_ext_test_ret_bt
 # uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp
-
+: '
 suffix='_sample'
 for task in uq_ext_test uq_ext_test_ret uq_ext_train uq_ext_train_ret uq_ext_test_inp uq_ext_train_inp; do
     for model in 3B; do
@@ -227,3 +227,4 @@ for task in uq_ext_test uq_ext_test_ret uq_ext_train uq_ext_train_ret uq_ext_tes
         fi
     done
 done
+'
