@@ -14,8 +14,9 @@ tpu=$1
 # uq_clean_train_bt_dedup uq_clean_train_ret_bt_dedup uq_clean_train_ret_bt_dedup_inp
 # test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp
 
-: '
-for task in test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp; do
+# uq_clean_test_bt_dedup_top10
+
+for task in uq_clean_test_bt_dedup_top10; do
     for model in 3B; do
         if [[ $task == 'uq_sub_test' ]]; then
             output_root=output/exp/uq_sub_test/dev
@@ -40,6 +41,10 @@ for task in test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp; do
         elif [[ $task == 'uq_clean_test_bt_dedup' ]]; then
             output_root=output/exp/uq_clean_test/dev/bt_dedup
             mix=uq_clean_test_bt_dedup_replace_mix
+            split=dev
+        elif [[ $task == 'uq_clean_test_bt_dedup_top10' ]]; then
+            output_root=output/exp/uq_clean_test/dev/bt_dedup_top10
+            mix=uq_clean_test_bt_dedup_top10_replace_mix
             split=dev
         elif [[ $task == 'uq_clean_test_ret' ]]; then
             output_root=output/exp/uq_clean_test/dev/ret
@@ -149,7 +154,7 @@ for task in test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp; do
         fi
     done
 done
-'
+
 
 # ext
 
@@ -159,7 +164,7 @@ done
 # uq_ext_train_bt uq_ext_test_bt
 # uq_ext_train_ret_bt uq_ext_test_ret_bt
 # uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp
-
+: '
 suffix='_sample'
 for task in uq_ext_test uq_ext_train; do
     for model in 3B; do
@@ -227,4 +232,4 @@ for task in uq_ext_test uq_ext_train; do
         fi
     done
 done
-
+'

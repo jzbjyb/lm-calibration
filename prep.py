@@ -22,7 +22,8 @@ from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE
   UNIFIEDQA_RAW_DECODE_UQ3B_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_GS_RET_DRQA_3S_BT, \
   UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_OL, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA, \
   UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_BT, \
-  UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT, UNIFIEDQA_RAW_DUP_GS
+  UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S_BT, UNIFIEDQA_RAW_DUP_GS, \
+  UNIFIEDQA_PREP_GS_BT_DEDUP_TOP10, UNIFIEDQA_PREP_GS_BT_DEDUP_TOP10_REP
 from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_OL, \
   UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S, \
   UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S_BT
@@ -442,6 +443,56 @@ def duplicate(fom_bk: str, to_bk: str, domains: List[Tuple[str, List]], format: 
             fout.write(l)
 
 
+def get_top_bt(fom_bk: str, bt_bk: str, to_bk: str, domains: List[Tuple[str, List]], format: str='tsv', total: int=1, topk: int=1, splits_restrict: Set[str]=None):
+  for domain, splits in domains:
+    for split in splits:
+      if splits_restrict and split not in splits_restrict:
+        continue
+      in_fname = os.path.join(fom_bk, domain, split + '.' + format)
+      bt_fname = os.path.join(bt_bk, domain, split + '.' + format + '.raw')
+      out_fname = os.path.join(to_bk, domain, split + '.' + format)
+      all_count = out_of_bound_count = 0
+      with tf.io.gfile.GFile(in_fname, 'r') as fin, \
+        tf.io.gfile.GFile(bt_fname, 'r') as bt_fin, \
+        tf.io.gfile.GFile(out_fname, 'w') as fout:
+        for l in fin:
+          _, question, answer, correct = l.rstrip('\n').split('\t')
+
+          # read bts
+          bts: Dict[str, int] = defaultdict(lambda: 0)
+          for i in range(total):
+            qid, _, bt, _ = bt_fin.readline().rstrip('\n').split('\t')
+            bts[bt] += 1
+
+          if answer in bts:
+            bts[answer] -= (total - topk)
+            if bts[answer] <= 0:
+              del bts[answer]
+            else:
+              out_of_bound_count += 1
+
+          # output
+          fout.write('{}\t{}\t{}\t{}\n'.format(qid, question, answer, correct))
+
+          bts = sorted(bts.items(), key=lambda x: -x[1])
+          c = topk - 1
+          ind = 0
+          all_count += 1
+          out_of_bound = False
+          while c > 0:
+            if ind >= len(bts) or bts[ind][1] <= 0:
+              if not out_of_bound:
+                out_of_bound_count += 1
+                out_of_bound = True
+              ind = 0
+            assert bts[ind][1] > 0, 'back translations are exhausted'
+            fout.write('{}\t{}\t{}\t{}\n'.format(qid, question, bts[ind][0], correct))
+            bts[ind] = (bts[ind][0], bts[ind][1] - 1)
+            ind += 1
+            c -= 1
+      print(in_fname, out_fname, 'outofbound', out_of_bound_count, all_count)
+
+
 if __name__ == '__main__':
   task = sys.argv[1]
 
@@ -450,6 +501,10 @@ if __name__ == '__main__':
     replace_in_ques_bt(TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, MT_TEST_DOMAINS, splits_restrict={'test'})
     replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT_DEDUP, UNIFIEDQA_PREP_GS_BT_DEDUP_REP, DOMAINS, splits_restrict={'dev'})
     replace_in_ques_bt(TEST_PREP_GS_BT_DEDUP, TEST_PREP_GS_BT_DEDUP_REP, MT_TEST_DOMAINS, splits_restrict={'test'})
+
+  if task == 'bt_topk':
+    get_top_bt(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_BT_DEDUP, UNIFIEDQA_PREP_GS_BT_DEDUP_TOP10, DOMAINS, total=100, topk=10, splits_restrict={'dev'})
+    replace_in_ques_bt(UNIFIEDQA_PREP_GS_BT_DEDUP_TOP10, UNIFIEDQA_PREP_GS_BT_DEDUP_TOP10_REP, DOMAINS, splits_restrict={'dev'})
 
   if task == 'ret':
     retrieve_aug(UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_RET_DRQA, DOMAINS, splits_restrict={'train', 'dev', 'test'})
