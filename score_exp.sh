@@ -14,7 +14,7 @@ tpu=$1
 # uq_clean_train_bt_dedup uq_clean_train_ret_bt_dedup uq_clean_train_ret_bt_dedup_inp
 # test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp
 
-
+: '
 for task in test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp; do
     for model in 3B; do
         if [[ $task == 'uq_sub_test' ]]; then
@@ -149,7 +149,7 @@ for task in test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp; do
         fi
     done
 done
-
+'
 
 # ext
 
@@ -159,9 +159,9 @@ done
 # uq_ext_train_bt uq_ext_test_bt
 # uq_ext_train_ret_bt uq_ext_test_ret_bt
 # uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp
-: '
+
 suffix='_sample'
-for task in uq_ext_test uq_ext_test_ret uq_ext_train uq_ext_train_ret uq_ext_test_inp uq_ext_train_inp; do
+for task in uq_ext_test uq_ext_train; do
     for model in 3B; do
         if [[ $task == 'uq_ext_train' ]]; then
             output_root=output/exp/uq_ext_train${suffix}/dev
@@ -219,12 +219,12 @@ for task in uq_ext_test uq_ext_test_ret uq_ext_train uq_ext_train_ret uq_ext_tes
             step=1115000
         fi
 
-        ./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} $step $mix $split &> nohup.out
+        #./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} $step $mix $split &> nohup.out
         if [[ $task == 'uq_ext_train' ]] || [[ $task == 'uq_ext_test' ]]; then
-            ./score.sh $tpu ${output_root}/${model}/uq_ft_margin.txt ${model} unifiedqa/ft_models/${model}_ext_dedup_margin $step $mix $split &> nohup.out
-            ./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_ext_dedup_softmax $step $mix $split &> nohup.out
+            ./score.sh $tpu ${output_root}/${model}/uq_ft_margin.txt ${model} unifiedqa/ft_models/${model}_ext_sample_margin $step $mix $split &> nohup.out
+            ./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_ext_sample_softmax $step $mix $split &> nohup.out
             ./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} $step $mix $split &> nohup.out
         fi
     done
 done
-'
+

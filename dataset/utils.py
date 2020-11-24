@@ -1,9 +1,10 @@
-from typing import Dict, List, Tuple, Set, Union
+from typing import Dict, List, Tuple, Set, Union, Callable
 import os
 import functools
 import tensorflow as tf
 import numpy as np
 from collections import defaultdict
+import re
 import gin
 import xgboost as xgb
 import mesh_tensorflow as mtf
@@ -227,7 +228,26 @@ def parse_ind(ind: str, get_input: bool=True):
   raise NotImplementedError
 
 
-def read_score_data(filename: str, mixture: str, split: str, **kwargs):
+def no_dup_filter_func(example: Dict):  # only assume two options
+  target_texts = example['target_text']
+  gold = target_texts[0].lower()
+  if gold == '<no answer>':
+    return False
+  gold = set(re.split(r'\W+', gold)) - {''}
+  l = len(target_texts)
+  assert l % 2 == 0, 'should only have two answer options'
+  other = target_texts[l // 2].lower()
+  other = set(re.split(r'\W+', other)) - {''}
+  if len(other & gold) > 0:
+    keep = False
+  else:
+    keep = True
+  return keep
+
+
+def read_score_data(filename: str, mixture: str, split: str, topk: int=None, filter_func: Callable=None, **kwargs):
+  if filter_func is None:
+    filter_func = lambda x: True
   mix = t5.data.MixtureRegistry.get(mixture)
   ds = mix.get_dataset_in_order(split=split, sequence_length={'inputs': 512, 'targets': 512}, shuffle=False)
   vocab = get_default_vocabulary()
@@ -246,6 +266,8 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
     target_len = []
     input_tokens = []
     target_tokens = []
+    input_texts = []
+    target_texts = []
     logprobs = []
     targets = []
 
@@ -284,20 +306,25 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
       if prev_ind is not None and (prev_task != task or prev_ind != ind):
         var = np.var(np.exp(np.array(scores)))
         score_var = [var] * len(scores)
+        _topk = topk if topk else len(scores)
         yield_result = {'task': prev_task, 'ind': prev_ind,
-                        'log_prob': scores, 'prob_var': score_var,
-                        'input_len': input_len, 'target_len': target_len,
-                        'target': targets,
-                        'input_tokens': input_tokens, 'target_tokens': target_tokens,
-                        'logprobs': logprobs}
+                        'log_prob': scores[:_topk], 'prob_var': score_var[:_topk],
+                        'input_len': input_len[:_topk], 'target_len': target_len[:_topk],
+                        'target': targets[:_topk],
+                        'input_tokens': input_tokens[:_topk], 'target_tokens': target_tokens[:_topk],
+                        'input_text': input_texts[:_topk], 'target_text': target_texts[:_topk],
+                        'logprobs': logprobs[:_topk]}
         if inp_perp is not None:
-          yield_result['inp_perp'] = [inp_perp] * len(scores)
-        yield yield_result
+          yield_result['inp_perp'] = ([inp_perp] * len(scores))[:_topk]
+        if filter_func(yield_result):
+          yield yield_result
         scores = []
         input_len = []
         target_len = []
         input_tokens = []
         target_tokens = []
+        input_texts = []
+        target_texts = []
         logprobs = []
         targets = []
       scores.append(score)
@@ -305,6 +332,8 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
       target_len.append(len(ex['targets'].numpy()))
       input_tokens.append(ex['inputs'].numpy().tolist())
       target_tokens.append(ex['targets'].numpy().tolist())
+      input_texts.append(ex['inputs_plaintext'].numpy().decode('utf-8'))
+      target_texts.append(ex['targets_plaintext'].numpy().decode('utf-8'))
       logprobs.append(logprob)
       targets.append(int(weight == 1))
       prev_inp = inp
@@ -313,15 +342,18 @@ def read_score_data(filename: str, mixture: str, split: str, **kwargs):
     if len(scores) > 0:
       var = np.var(np.exp(np.array(scores)))
       score_var = [var] * len(scores)
+      _topk = topk if topk else len(scores)
       yield_result = {'task': prev_task, 'ind': prev_inp,
-                      'log_prob': scores, 'prob_var': score_var,
-                      'input_len': input_len, 'target_len': target_len,
-                      'target': targets,
-                      'input_tokens': input_tokens, 'target_tokens': target_tokens,
-                      'logprobs': logprobs}
+                      'log_prob': scores[:_topk], 'prob_var': score_var[:_topk],
+                      'input_len': input_len[:_topk], 'target_len': target_len[:_topk],
+                      'target': targets[:_topk],
+                      'input_tokens': input_tokens[:_topk], 'target_tokens': target_tokens[:_topk],
+                      'input_text': input_texts[:_topk], 'target_text': target_texts[:_topk],
+                      'logprobs': logprobs[:_topk]}
       if inp_perp is not None:
-        yield_result['inp_perp'] = [inp_perp] * len(scores)
-      yield yield_result
+        yield_result['inp_perp'] = ([inp_perp] * len(scores))[:_topk]
+      if filter_func(yield_result):
+        yield yield_result
 
 
 def convert_data_to_dmatrix(data, split: float=0.8):
