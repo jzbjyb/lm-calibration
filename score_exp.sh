@@ -14,10 +14,10 @@ tpu=$1
 # uq_clean_train_bt_dedup uq_clean_train_ret_bt_dedup uq_clean_train_ret_bt_dedup_inp
 # test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp
 
-# uq_clean_test_bt_dedup_top10
+# uq_clean_test_bt_dedup_top10 uq_clean_test_bt_dedup_top20
 
-for task in uq_clean_test_bt_dedup_top10; do
-    for model in 3B; do
+for task in uq_clean_test_bt_dedup_top20; do
+    for model in 11B; do
         if [[ $task == 'uq_sub_test' ]]; then
             output_root=output/exp/uq_sub_test/dev
             mix=uq_sub_test_mix
@@ -45,6 +45,10 @@ for task in uq_clean_test_bt_dedup_top10; do
         elif [[ $task == 'uq_clean_test_bt_dedup_top10' ]]; then
             output_root=output/exp/uq_clean_test/dev/bt_dedup_top10
             mix=uq_clean_test_bt_dedup_top10_replace_mix
+            split=dev
+        elif [[ $task == 'uq_clean_test_bt_dedup_top20' ]]; then
+            output_root=output/exp/uq_clean_test/dev/bt_dedup_top20
+            mix=uq_clean_test_bt_dedup_top20_replace_mix
             split=dev
         elif [[ $task == 'uq_clean_test_ret' ]]; then
             output_root=output/exp/uq_clean_test/dev/ret

@@ -18,9 +18,11 @@ UNIFIEDQA_PREP_GS_OL = 'gs://neulab-qa/data/unifiedqa_oneline'
 UNIFIEDQA_PREP_GS_BT = 'gs://neulab-qa/data/unifiedqa_bt'
 UNIFIEDQA_PREP_GS_BT_DEDUP = 'gs://neulab-qa/data/unifiedqa_bt_dedup'
 UNIFIEDQA_PREP_GS_BT_DEDUP_TOP10 = 'gs://neulab-qa/data/unifiedqa_bt_dedup_top10'
+UNIFIEDQA_PREP_GS_BT_DEDUP_TOP20 = 'gs://neulab-qa/data/unifiedqa_bt_dedup_top20'
 UNIFIEDQA_PREP_GS_BT_REP = 'gs://neulab-qa/data/unifiedqa_bt_replace'
 UNIFIEDQA_PREP_GS_BT_DEDUP_REP = 'gs://neulab-qa/data/unifiedqa_bt_dedup_replace'
 UNIFIEDQA_PREP_GS_BT_DEDUP_TOP10_REP = 'gs://neulab-qa/data/unifiedqa_bt_dedup_top10_replace'
+UNIFIEDQA_PREP_GS_BT_DEDUP_TOP20_REP = 'gs://neulab-qa/data/unifiedqa_bt_dedup_top20_replace'
 UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s_bt_replace'
 UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_DEDUP_REP = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s_bt_dedup_replace'
 
@@ -247,6 +249,14 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
     t5.data.TaskRegistry.add(
+      'uq_{}_bt_dedup_top20_replace'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn, bucket=UNIFIEDQA_PREP_GS_BT_DEDUP_TOP20_REP, domain=domain, use_neg=True, neg_method=neg_method),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
       'uq_{}_ret_drqa_3s_bt_replace'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_fn_ret, bucket=UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP, domain=domain, ret_ind=ret_ind, ret_method=ret_method),
@@ -342,6 +352,8 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
     t5.data.MixtureRegistry.add('uq_clean_{}_bt_dedup_replace_mix'.format(split), ['uq_{}_bt_dedup_replace'.format(domain) for domain, _ in domains], default_rate=1.0)
     t5.data.MixtureRegistry.remove('uq_clean_{}_bt_dedup_top10_replace_mix'.format(split))
     t5.data.MixtureRegistry.add('uq_clean_{}_bt_dedup_top10_replace_mix'.format(split), ['uq_{}_bt_dedup_top10_replace'.format(domain) for domain, _ in domains], default_rate=1.0)
+    t5.data.MixtureRegistry.remove('uq_clean_{}_bt_dedup_top20_replace_mix'.format(split))
+    t5.data.MixtureRegistry.add('uq_clean_{}_bt_dedup_top20_replace_mix'.format(split), ['uq_{}_bt_dedup_top20_replace'.format(domain) for domain, _ in domains], default_rate=1.0)
     t5.data.MixtureRegistry.remove('uq_clean_{}_ret_drqa_3s_mix'.format(split))
     t5.data.MixtureRegistry.add('uq_clean_{}_ret_drqa_3s_mix'.format(split), ['uq_{}_ret_drqa_3s'.format(domain) for domain, _ in domains],  default_rate=1.0)
     t5.data.MixtureRegistry.remove('uq_clean_{}_ret_drqa_3s_bt_replace_mix'.format(split))

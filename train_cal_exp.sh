@@ -2,7 +2,7 @@
 
 # mc
 
-for model_type in 3B; do
+for model_type in 11B; do
     for train_set in uq_clean_train uq_clean_test; do  # uq_clean_train uq_clean_test
         # temp
         python train_cal.py --model temp --mix ${train_set}_mix --split dev \
@@ -15,9 +15,9 @@ for model_type in 3B; do
             --out output/exp/model/xgb/${model_type}_${train_set}_ft_margin.bin &> output/exp/model/xgb/${model_type}_${train_set}_ft_margin.out
         # ret bt
         if [[ $train_set == 'uq_clean_train' ]]; then
-            reb_bt_mix=uq_clean_train_bt_mix
+            reb_bt_mix=uq_clean_train_ret_drqa_3s_bt_dedup_replace_mix
         elif [[ $train_set == 'uq_clean_test' ]]; then
-            reb_bt_mix=uq_clean_test_bt_mix
+            reb_bt_mix=uq_clean_test_ret_drqa_3s_bt_dedup_replace_mix
         fi
         suffix=ret_bt_dedup
         python train_cal.py --model temp --mix ${reb_bt_mix} --split dev \
@@ -30,7 +30,7 @@ for model_type in 3B; do
 done
 
 # ext
-
+: '
 for model_type in 3B; do
     for train_set in uq_ext_train_dedup uq_ext_test_dedup; do
         if [[ $train_set == 'uq_ext_train' ]]; then
@@ -65,3 +65,4 @@ for model_type in 3B; do
 
     done
 done
+'
