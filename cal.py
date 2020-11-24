@@ -122,7 +122,7 @@ def concat_paraphrase(paras: List[Tuple[str, str, List, List]]):
 
 def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
         temp: float=1.0, norm: str='softmax', xgb_model_path=None, ana: bool=False,
-        method: str='micro', topk: int=None, **kwargs):
+        method: str='micro', topk: int=None, m_per_n: Tuple[int, int]=None, **kwargs):
   real_acc_li = []
   real_task_li = []
   acc_li = []
@@ -144,7 +144,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
   else:
     xgb_model = None
 
-  sample_gens = [read_score_data(sf, mixture, split, topk=topk, filter_func=None, **kwargs) for sf in score_files]
+  sample_gens = [read_score_data(sf, mixture, split, topk=topk, m_per_n=m_per_n, filter_func=None, **kwargs) for sf in score_files]
   while True:
     try:
       samples = [next(sg) for sg in sample_gens]
@@ -349,6 +349,7 @@ if __name__ == '__main__':
   parser.add_argument('--method', type=str, help='metric method', default='macro', choices=['micro', 'macro'])
   parser.add_argument('--mix', type=str, help='mixture', default='uq_sub_test_mix', nargs='+')
   parser.add_argument('--topk', type=int, help='topk options for each question', default=None)
+  parser.add_argument('--mn', type=str, help='get m results per n', default=None)
   parser.add_argument('--split', type=str, help='split', default='dev')
   parser.add_argument('--score', type=str, help='score file', nargs='+')
   parser.add_argument('--inp_perp', type=str, help='feature of input perplexity', default=None)
@@ -358,6 +359,10 @@ if __name__ == '__main__':
   parser.add_argument('--norm', type=str, help='normalization method', default='softmax', choices=['softmax', 'no', 'margin', 'margin_order'])
   parser.add_argument('--ana', type=str, help='ana path', default=None)
   args = parser.parse_args()
+  if args.mn is not None:
+    args.mn = tuple(map(int, args.mn.split(':')))
+
+  print(args.mn)
 
   # build tasks and mixtures
   build(neg_method='weight', ret_ind=0, ret_method='q-vis')
@@ -366,13 +371,13 @@ if __name__ == '__main__':
     ana_datas = []
     for i, (mix, score_file) in enumerate(zip(args.mix, args.score)):
       if i == 0 and len(args.mix) > 1:  # the first one use default
-        ana_data = acc(mix, [score_file], args.split, ana=args.ana, method=args.method, topk=args.topk)
+        ana_data = acc(mix, [score_file], args.split, ana=args.ana, method=args.method, topk=args.topk, m_per_n=args.mn)
       else:
         ana_data = acc(mix, [score_file], args.split, args.num_bt, args.temp, norm=args.norm, xgb_model_path=args.xgb,
-            ana=args.ana, method=args.method, inp_perp=args.inp_perp, topk=args.topk)
+            ana=args.ana, method=args.method, inp_perp=args.inp_perp, topk=args.topk, m_per_n=args.mn)
       ana_datas.append(ana_data)
     print('analysis to {}'.format(args.ana))
     analysis(ana_datas, args.ana, 500)
   else:
     acc(args.mix[0], args.score, args.split, args.num_bt, args.temp, norm=args.norm, xgb_model_path=args.xgb,
-        ana=args.ana, method=args.method, inp_perp=args.inp_perp, topk=args.topk)
+        ana=args.ana, method=args.method, inp_perp=args.inp_perp, topk=args.topk, m_per_n=args.mn)

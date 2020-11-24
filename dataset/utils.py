@@ -245,7 +245,18 @@ def no_dup_filter_func(example: Dict):  # only assume two options
   return keep
 
 
-def read_score_data(filename: str, mixture: str, split: str, topk: int=None, filter_func: Callable=None, **kwargs):
+def get_m_per_n(arr: List, mn: Tuple[int, int]):
+  if mn is None:
+    return arr
+  m, n = mn
+  new_arr = []
+  for i in range(0, len(arr), n):
+    new_arr.extend(arr[i:i+m])
+  return new_arr
+
+
+def read_score_data(filename: str, mixture: str, split: str,
+                    topk: int=None, m_per_n: Tuple[int, int]=None, filter_func: Callable=None, **kwargs):
   if filter_func is None:
     filter_func = lambda x: True
   mix = t5.data.MixtureRegistry.get(mixture)
@@ -308,14 +319,14 @@ def read_score_data(filename: str, mixture: str, split: str, topk: int=None, fil
         score_var = [var] * len(scores)
         _topk = topk if topk else len(scores)
         yield_result = {'task': prev_task, 'ind': prev_ind,
-                        'log_prob': scores[:_topk], 'prob_var': score_var[:_topk],
-                        'input_len': input_len[:_topk], 'target_len': target_len[:_topk],
-                        'target': targets[:_topk],
-                        'input_tokens': input_tokens[:_topk], 'target_tokens': target_tokens[:_topk],
-                        'input_text': input_texts[:_topk], 'target_text': target_texts[:_topk],
-                        'logprobs': logprobs[:_topk]}
+                        'log_prob': get_m_per_n(scores[:_topk], m_per_n), 'prob_var': get_m_per_n(score_var[:_topk], m_per_n),
+                        'input_len': get_m_per_n(input_len[:_topk], m_per_n), 'target_len': get_m_per_n(target_len[:_topk], m_per_n),
+                        'target': get_m_per_n(targets[:_topk], m_per_n),
+                        'input_tokens': get_m_per_n(input_tokens[:_topk], m_per_n), 'target_tokens': get_m_per_n(target_tokens[:_topk], m_per_n),
+                        'input_text': get_m_per_n(input_texts[:_topk], m_per_n), 'target_text': get_m_per_n(target_texts[:_topk], m_per_n),
+                        'logprobs': get_m_per_n(logprobs[:_topk], m_per_n)}
         if inp_perp is not None:
-          yield_result['inp_perp'] = ([inp_perp] * len(scores))[:_topk]
+          yield_result['inp_perp'] = get_m_per_n(([inp_perp] * len(scores))[:_topk], m_per_n)
         if filter_func(yield_result):
           yield yield_result
         scores = []
@@ -344,14 +355,14 @@ def read_score_data(filename: str, mixture: str, split: str, topk: int=None, fil
       score_var = [var] * len(scores)
       _topk = topk if topk else len(scores)
       yield_result = {'task': prev_task, 'ind': prev_inp,
-                      'log_prob': scores[:_topk], 'prob_var': score_var[:_topk],
-                      'input_len': input_len[:_topk], 'target_len': target_len[:_topk],
-                      'target': targets[:_topk],
-                      'input_tokens': input_tokens[:_topk], 'target_tokens': target_tokens[:_topk],
-                      'input_text': input_texts[:_topk], 'target_text': target_texts[:_topk],
-                      'logprobs': logprobs[:_topk]}
+                      'log_prob': get_m_per_n(scores[:_topk], m_per_n), 'prob_var': get_m_per_n(score_var[:_topk], m_per_n),
+                      'input_len': get_m_per_n(input_len[:_topk], m_per_n), 'target_len': get_m_per_n(target_len[:_topk], m_per_n),
+                      'target': get_m_per_n(targets[:_topk], m_per_n),
+                      'input_tokens': get_m_per_n(input_tokens[:_topk], m_per_n), 'target_tokens': get_m_per_n(target_tokens[:_topk], m_per_n),
+                      'input_text': get_m_per_n(input_texts[:_topk], m_per_n), 'target_text': get_m_per_n(target_texts[:_topk], m_per_n),
+                      'logprobs': get_m_per_n(logprobs[:_topk], m_per_n)}
       if inp_perp is not None:
-        yield_result['inp_perp'] = ([inp_perp] * len(scores))[:_topk]
+        yield_result['inp_perp'] = get_m_per_n(([inp_perp] * len(scores))[:_topk], m_per_n)
       if filter_func(yield_result):
         yield yield_result
 
