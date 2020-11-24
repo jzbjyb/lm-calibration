@@ -52,5 +52,16 @@ for model_type in 3B; do
             --score output/exp/${train_set}/dev/${model_type}/uq.txt \
             --inp_perp output/exp/${train_set}/dev/inp/${model_type}/uq.txt \
             --out output/exp/model/xgb/${model_type}_${train_set}.bin &> output/exp/model/xgb/${model_type}_${train_set}.out
+
+        # ret bt
+        if [[ $train_set == 'uq_ext_train_dedup' ]]; then
+            reb_bt_mix=uq_ext_decode_train_uq3B_dedup_ret_drqa_3s_bt_mix
+        elif [[ $train_set == 'uq_ext_test_dedup' ]]; then
+            reb_bt_mix=uq_ext_decode_test_uq3B_dedup_ret_drqa_3s_bt_mix
+        fi
+        suffix=ret_bt
+        python train_cal.py --model temp --mix ${mix} --split dev \
+            --score output/exp/${train_set}/dev/${suffix}/${model_type}/uq.txt &> output/exp/model/temp/${model_type}_${train_set}_${suffix}.out
+
     done
 done

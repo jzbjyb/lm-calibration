@@ -362,8 +362,6 @@ if __name__ == '__main__':
   if args.mn is not None:
     args.mn = tuple(map(int, args.mn.split(':')))
 
-  print(args.mn)
-
   # build tasks and mixtures
   build(neg_method='weight', ret_ind=0, ret_method='q-vis')
 
