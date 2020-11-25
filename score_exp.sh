@@ -16,7 +16,7 @@ tpu=$1
 
 # uq_clean_test_bt_dedup_top10 uq_clean_test_bt_dedup_top20
 
-for task in uq_clean_test_bt_dedup_top20; do
+for task in uq_clean_test; do
     for model in 11B; do
         if [[ $task == 'uq_sub_test' ]]; then
             output_root=output/exp/uq_sub_test/dev
@@ -153,8 +153,8 @@ for task in uq_clean_test_bt_dedup_top20; do
         ./score.sh $tpu ${output_root}/${model}/uq_ft_margin.txt ${model} unifiedqa/ft_models/${model}_margin $step $mix $split &> nohup.out
         if [[ $task == 'uq_clean_test' ]] || [[ $task == 'uq_clean_train' ]] || [[ $task == 'test' ]]; then
             ./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_softmax $step $mix $split &> nohup.out
-            ./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} $step $mix $split &> nohup.out
-            ./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} $step $mix $split &> nohup.out
+            ./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} 1100500 $mix $split &> nohup.out
+            ./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} 1000000 $mix $split &> nohup.out
         fi
     done
 done
@@ -168,7 +168,7 @@ done
 # uq_ext_train_bt uq_ext_test_bt
 # uq_ext_train_ret_bt uq_ext_test_ret_bt
 # uq_ext_train_ret_bt_inp uq_ext_test_ret_bt_inp
-: '
+
 suffix='_sample'
 for task in uq_ext_test uq_ext_train; do
     for model in 3B; do
@@ -228,12 +228,11 @@ for task in uq_ext_test uq_ext_train; do
             step=1115000
         fi
 
-        #./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} $step $mix $split &> nohup.out
+        ./score.sh $tpu ${output_root}/${model}/uq.txt ${model} unifiedqa/models/${model} 1100500 $mix $split &> nohup.out
         if [[ $task == 'uq_ext_train' ]] || [[ $task == 'uq_ext_test' ]]; then
             ./score.sh $tpu ${output_root}/${model}/uq_ft_margin.txt ${model} unifiedqa/ft_models/${model}_ext_sample_margin $step $mix $split &> nohup.out
             ./score.sh $tpu ${output_root}/${model}/uq_ft_softmax.txt ${model} unifiedqa/ft_models/${model}_ext_sample_softmax $step $mix $split &> nohup.out
-            ./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} $step $mix $split &> nohup.out
+            ./score.sh $tpu ${output_root}/${model}/t5.txt ${model} t5-data/pretrained_models/${model} 1000000 $mix $split &> nohup.out
         fi
     done
 done
-'

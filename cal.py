@@ -12,6 +12,7 @@ from scipy.stats import entropy
 import xgboost as xgb
 from dataset import build, read_score_data, convert_data_to_dmatrix
 from dataset.utils import no_dup_filter_func
+plt.rcParams.update({'font.size': 26})
 
 
 def choose_score(scores_li: List[List[float]], weights: List[float]):
@@ -23,14 +24,14 @@ def choose_score(scores_li: List[List[float]], weights: List[float]):
   return scores_li[0]
 
 
-def compute_acc(acc_li: List[float], task_li: List[str], method: str='micro'):
+def compute_avg(acc_li: List[float], task_li: List[str], method: str='micro', tag: str='acc'):
   overall = []
   current = []
   prev_task = None
   for acc, task in zip(acc_li, task_li):
     if prev_task is not None and task != prev_task:
       overall.append(np.mean(current))
-      print('task acc {}: {}'.format(prev_task, overall[-1]))
+      print('task {} {}: {}'.format(tag, prev_task, overall[-1]))
       current = []
     current.append(acc)
     if method == 'macro':
@@ -41,7 +42,7 @@ def compute_acc(acc_li: List[float], task_li: List[str], method: str='micro'):
       raise NotImplementedError
   if len(current) > 0:
     overall.append(np.mean(current))
-    print('task acc {}: {}'.format(prev_task, overall[-1]))
+    print('task {} {}: {}'.format(tag, prev_task, overall[-1]))
   return np.mean(overall)
 
 
@@ -67,13 +68,24 @@ def get_ece(acc_li: List[float], conf_li: List[float], plot: bool=False):
 
   if plot:
     plt.bar(xind, [np.mean(list(map(itemgetter(1), bin))) for bin in bins], margin)
-    plt.title('ece {:.3f}'.format(ece))
+    #plt.title('ece {:.3f}'.format(ece))
     plt.ylabel('accuracy')
     plt.xlabel('confidence')
     plt.ylim(0.0, 1.0)
     plt.xlim(0.0, 1.0)
+    plt.tight_layout()
     plt.plot([0, 1], color='red')
-    plt.savefig('test.png')
+    plt.savefig('reliability.pdf')
+    plt.close()
+
+    plt.hist(conf_li, bins=num_bins, weights=np.ones(len(conf_li)) / len(conf_li))
+    # plt.title('ece {:.3f}'.format(ece))
+    plt.ylabel('ratio')
+    plt.xlabel('confidence')
+    plt.ylim(0.0, 1.0)
+    plt.xlim(0.0, 1.0)
+    plt.tight_layout()
+    plt.savefig('dist.pdf')
     plt.close()
 
   return ece
@@ -101,6 +113,7 @@ def compute_ece(acc_li: List[float], conf_li: List[float], task_li: List[str], m
   if len(current_acc_li) > 0:
     overall.append(get_ece(current_acc_li, current_conf_li))
     print('task ece {}: {}'.format(prev_task, overall[-1]))
+  get_ece(acc_li, conf_li, plot=True)
   return np.mean(overall)
 
 
@@ -125,6 +138,7 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
         method: str='micro', topk: int=None, m_per_n: Tuple[int, int]=None, **kwargs):
   real_acc_li = []
   real_task_li = []
+  real_entropy_li = []
   acc_li = []
   conf_li = []
   raw_prob_li = []
@@ -220,14 +234,18 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
       raw_prob_li.append(rscore)
     choice = np.argmax(_scores)
     real_acc_li.append(int(_weights[choice][0] == 1))
+    real_entropy_li.append(entropy(_scores, base=len(_scores)))
     real_task_li.append(task)
 
-  real_acc = compute_acc(real_acc_li, real_task_li, method=method)
+  real_acc = compute_avg(real_acc_li, real_task_li, method=method, tag='acc')
   print('count', len(real_acc_li))
   print('acc', real_acc)
 
   ece = compute_ece(acc_li, conf_li, task_li, method=method)
   print('ece', ece)
+
+  ent = compute_avg(real_entropy_li, real_task_li, method=method, tag='entropy')
+  print('entropy', ent)
 
   if ana:
     return {
@@ -277,6 +295,10 @@ def to_stype(scalar, correct: bool) -> str:
     *([n * 100 for n in _map.to_rgba(scalar)] + (['font-weight:bold' if correct else '']) + [scalar]))
 
 
+def compute_diversity(tokens_li: List[List[int]]):
+  return np.mean([len(set(tokens)) / len(tokens) for tokens in tokens_li])
+
+
 def analysis_compare(datas: List[Dict], output: str, topk=100):
   os.makedirs(output, exist_ok=True)
   data1 = datas[0]
@@ -284,9 +306,21 @@ def analysis_compare(datas: List[Dict], output: str, topk=100):
   acc = data1['acc']
   conf_gain = data2['conf'] - data1['conf']
 
-  score = -np.array(conf_gain) * (np.array(data1['acc']) * 2 - 1)
-  ind = np.argsort(score)[:topk]
+  score = np.array(conf_gain) * (np.array(data1['acc']) * 2 - 1)
+  ind = np.argsort(-score)[:topk]
   conf_gain = list(zip(data1['raw_prob'], data2['raw_prob'], data2['conf'] - data1['conf']))
+
+  imp_ind = np.arange(len(score))[score >= 0.2]
+  same_ind = np.arange(len(score))[np.abs(score) <= 0.01]
+  print('#improve {}, #same {}'.format(len(imp_ind), len(same_ind)))
+
+  for group, _ind in [('improve', imp_ind), ('same', same_ind)]:
+    print(group)
+    for metric in ['target_len', 'input_len', 'target_tokens']:
+      if metric == 'target_tokens':
+        print(metric, compute_diversity(data1[metric][_ind]), compute_diversity(data2[metric][_ind]))
+      else:
+        print(metric, np.mean(data1[metric][_ind]), np.mean(data2[metric][_ind]))
 
   agg_ana_data(data2, 'logprobs', conf_gain)
   display(output, 'improve', data2, ind, conf_gain, acc)
