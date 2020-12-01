@@ -308,7 +308,7 @@ def analysis_compare(datas: List[Dict], output: str, topk=100):
 
   score = np.array(conf_gain) * (np.array(data1['acc']) * 2 - 1)
   ind = np.argsort(-score)[:topk]
-  conf_gain = list(zip(data1['raw_prob'], data2['raw_prob'], data2['conf'] - data1['conf']))
+  conf_gain = list(zip(data1['raw_prob'], data2['raw_prob'], data1['conf'], data2['conf'], data2['conf'] - data1['conf']))
 
   imp_ind = np.arange(len(score))[score >= 0.2]
   same_ind = np.arange(len(score))[np.abs(score) <= 0.01]
@@ -351,7 +351,7 @@ def display(output: str, prefix: str, data: Dict, ind: List[int], conf: List[str
   def format_conf(conf):
     if type(conf) not in {list, tuple}:
       conf = [conf]
-    return ' '.join(['{:.3f}'.format(c) for c in conf])
+    return ' '.join(['{:.5f}'.format(c) for c in conf])
 
   for metric, xmin, xmax in [('input_len', 0, 512), ('target_len', 0, 128), ('input_tokens', 1000, 30000), ('target_tokens', 1000, 30000), ('logprobs', 0, 0)]:
     x = data[metric][ind]

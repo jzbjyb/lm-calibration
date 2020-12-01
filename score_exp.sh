@@ -16,7 +16,7 @@ tpu=$1
 
 # uq_clean_test_bt_dedup_top10 uq_clean_test_bt_dedup_top20
 
-for task in uq_clean_test; do
+for task in test_bt_dedup test_ret_bt_dedup test_ret_bt_dedup_inp; do
     for model in 11B; do
         if [[ $task == 'uq_sub_test' ]]; then
             output_root=output/exp/uq_sub_test/dev
