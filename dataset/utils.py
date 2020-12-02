@@ -305,8 +305,8 @@ def read_score_data(filename: str, mixture: str, split: str,
       if len(ls) == 1:
         score = ls[0]
         score = float(score)
-      else:
-        score, inp_tokens, tgt_tokens, logprob = ls
+      elif len(ls) in {4, 6, 7}:
+        score, inp_tokens, tgt_tokens, logprob = ls[:4]
         inp_tokens = [int(i) for i in inp_tokens.split(',0', 1)[0].split(',')]
         tgt_tokens = [int(i) for i in tgt_tokens.split(',0', 1)[0].split(',')]
         logprob = [float(i) for i in logprob.split(',')]
@@ -314,6 +314,8 @@ def read_score_data(filename: str, mixture: str, split: str,
         tgt_tokens = [vocab.decode([i]) for i in tgt_tokens]
         logprob = (task, inp, tgt_tokens, logprob[:len(tgt_tokens)], int(weight == 1))  # inp has '\n'
         score = float(score)
+      else:
+        raise NotImplementedError
       if prev_ind is not None and (prev_task != task or prev_ind != ind):
         var = np.var(np.exp(np.array(scores)))
         score_var = [var] * len(scores)

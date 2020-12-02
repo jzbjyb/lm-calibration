@@ -490,6 +490,10 @@ def tpu_estimator_model_fn(model_type,
           logits, mtf_features["targets"], vocab_dim)
       cross_entropy *= mtf.cast(
           mtf.not_equal(targets, 0), cross_entropy.dtype)
+      end_sym = mtf.layers.softmax_cross_entropy_with_logits(
+        logits, mtf.ones_like(mtf_features["targets"]), vocab_dim)
+      end_sym *= mtf.cast(
+        mtf.not_equal(targets, 0), end_sym.dtype)
       if mode == "delimited_lm":
         cross_entropy *= mtf.cast(mtf.logical_not(
             transformer.delimited_lm_inputs_mask(targets)), cross_entropy.dtype)
@@ -497,6 +501,8 @@ def tpu_estimator_model_fn(model_type,
       scores = mtf.anonymize(scores)
       lps = -cross_entropy
       lps = mtf.anonymize(lps)
+      end_lps = -end_sym
+      end_lps = mtf.anonymize(end_lps)
       inp_tokens = mtf.anonymize(inputs)
       tgt_tokens = mtf.anonymize(targets)
       #if logits.shape[1].size == 1:
@@ -515,6 +521,7 @@ def tpu_estimator_model_fn(model_type,
       #if logits.shape[1].size == 1:
       predictions["first_token_prob"] = lowering.export_to_tf_tensor(first_token_prob)
       predictions["first_token_ind"] = lowering.export_to_tf_tensor(first_token_ind)
+      predictions["end_log_probs"] = lowering.export_to_tf_tensor(end_lps)
     elif mode == tf.estimator.ModeKeys.PREDICT:
       inputs = mtf_features["inputs"]
       if predict_fn:
@@ -1267,13 +1274,15 @@ def _score_with_estimator(estimator, input_fn, eval_checkpoint_step, model_dir,
   result_iter = estimator.predict(input_fn, checkpoint_path=checkpoint_path)
   scores = [(m["scores"], m["inputs"], m["targets"], m["log_probs"],
              m["first_token_ind"] if "first_token_ind" in m else None,
-             m["first_token_prob"] if "first_token_prob" in m else None) for m in result_iter]
+             m["first_token_prob"] if "first_token_prob" in m else None,
+             m["end_log_probs"] if "end_log_probs" in m else None) for m in result_iter]
   # Remove any padding examples
   scores = scores[:num_examples]
   if scores_filename is not None:
-    write_lines_to_file(["{}\t{}\t{}\t{}\t{}\t{}".format(
-      f, format_tensor(inp, '%d'), format_tensor(tgt, '%d'), format_tensor(lp), format_tensor(fti, '%d'), format_tensor(ftp))
-      for f, inp, tgt, lp, fti, ftp in scores], scores_filename)
+    write_lines_to_file(["{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+      f, format_tensor(inp, '%d'), format_tensor(tgt, '%d'), format_tensor(lp),
+      format_tensor(fti, '%d'), format_tensor(ftp), format_tensor(elp))
+      for f, inp, tgt, lp, fti, ftp, elp in scores], scores_filename)
   return scores
 
 
