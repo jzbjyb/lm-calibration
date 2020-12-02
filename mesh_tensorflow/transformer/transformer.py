@@ -1551,18 +1551,16 @@ class Bitransformer(object):
       loss = decoder_loss_li[0]
     else:
       if self.loss_type == 'softmax':
-        alp = [mtf.reduce_sum(lp * mask, reduced_dim=lp.shape[-1]) / mtf.reduce_sum(mask, reduced_dim=mask.shape[-1])
-               for lp, mask in zip(decoder_logits_li, mask_li)]
+        alp = [mtf.reduce_sum(lp * mask, reduced_dim=lp.shape[-1]) for lp, mask in zip(decoder_logits_li, mask_li)]  # no len norm
         mask = mtf.to_bfloat16(mtf.log(
           mtf.stack([mtf.layers.weights_nonzero(mtf.reduce_sum(mask, reduced_dim=mask.shape[-1]) - 1)
                      for mask in mask_li], 'stack', -1)))
         alp_stack = mtf.stack(alp, 'stack', -1) + mask
         log_z = mtf.reduce_logsumexp(alp_stack, reduced_dim=alp_stack.shape[-1])
         log_softmax = alp[0] - log_z
-        loss = 10 * (mtf.reduce_sum(mtf.negative(log_softmax)) / self.decoder.loss_denominator(alp[0], num_microbatches))
+        loss = mtf.reduce_sum(mtf.negative(log_softmax)) / self.decoder.loss_denominator(alp[0], num_microbatches)
       elif self.loss_type == 'margin':
-        alp = [mtf.reduce_sum(lp * mask, reduced_dim=lp.shape[-1]) / mtf.reduce_sum(mask, reduced_dim=mask.shape[-1])
-               for lp, mask in zip(decoder_logits_li, mask_li)]
+        alp = [mtf.reduce_sum(lp * mask, reduced_dim=lp.shape[-1]) for lp, mask in zip(decoder_logits_li, mask_li)]  # no len norm
         mask = [mtf.to_bfloat16(mtf.layers.weights_nonzero(mtf.reduce_sum(mask, reduced_dim=mask.shape[-1]) - 1)) for mask in mask_li]
         margin = 0
         for _alp, _mask in zip(alp[1:], mask[1:]):
