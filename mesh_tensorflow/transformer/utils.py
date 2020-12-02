@@ -499,6 +499,12 @@ def tpu_estimator_model_fn(model_type,
       lps = mtf.anonymize(lps)
       inp_tokens = mtf.anonymize(inputs)
       tgt_tokens = mtf.anonymize(targets)
+      #if logits.shape[1].size == 1:
+      first_token = mtf.slice(logits, 0, 1, 'length')
+      first_token = mtf.reshape(first_token, mtf.Shape([first_token.shape[0], first_token.shape[-1]]))
+      first_token = mtf.softmax(first_token, logits.shape[-1])
+      first_token_prob, first_token_ind = mtf.top_k(first_token, first_token.shape[-1], mtf.Dimension(name='topk', size=512))
+      first_token_prob, first_token_ind = mtf.anonymize(first_token_prob), mtf.anonymize(first_token_ind)
       lowering = mtf.Lowering(graph, {mesh: mesh_impl}, autostack=autostack)
       predictions = {
           "scores": lowering.export_to_tf_tensor(scores),
@@ -506,6 +512,9 @@ def tpu_estimator_model_fn(model_type,
           "inputs": lowering.export_to_tf_tensor(inp_tokens),
           "targets": lowering.export_to_tf_tensor(tgt_tokens),
       }
+      #if logits.shape[1].size == 1:
+      predictions["first_token_prob"] = lowering.export_to_tf_tensor(first_token_prob)
+      predictions["first_token_ind"] = lowering.export_to_tf_tensor(first_token_ind)
     elif mode == tf.estimator.ModeKeys.PREDICT:
       inputs = mtf_features["inputs"]
       if predict_fn:
@@ -1231,6 +1240,8 @@ def clean_decodes(ids, eos_id=1, pad_id=0, length_axis=-1):
 
 
 def format_tensor(tensor, foramt_str='%f'):
+  if tensor is None:
+    return ''
   return ','.join([(foramt_str % f) for f in tensor])
 
 
@@ -1254,13 +1265,15 @@ def _score_with_estimator(estimator, input_fn, eval_checkpoint_step, model_dir,
   checkpoint_path, = get_checkpoint_iterator(eval_checkpoint_step, model_dir)
 
   result_iter = estimator.predict(input_fn, checkpoint_path=checkpoint_path)
-  scores = [(m["scores"], m["inputs"], m["targets"], m["log_probs"]) for m in result_iter]
+  scores = [(m["scores"], m["inputs"], m["targets"], m["log_probs"],
+             m["first_token_ind"] if "first_token_ind" in m else None,
+             m["first_token_prob"] if "first_token_prob" in m else None) for m in result_iter]
   # Remove any padding examples
   scores = scores[:num_examples]
   if scores_filename is not None:
-    write_lines_to_file(["{}\t{}\t{}\t{}".format(
-      f, format_tensor(inp, '%d'), format_tensor(tgt, '%d'), format_tensor(lp))
-                         for f, inp, tgt, lp in scores], scores_filename)
+    write_lines_to_file(["{}\t{}\t{}\t{}\t{}\t{}".format(
+      f, format_tensor(inp, '%d'), format_tensor(tgt, '%d'), format_tensor(lp), format_tensor(fti, '%d'), format_tensor(ftp))
+      for f, inp, tgt, lp, fti, ftp in scores], scores_filename)
   return scores
 
 
