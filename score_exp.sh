@@ -16,130 +16,82 @@ tpu=$1
 
 # uq_clean_test_bt_dedup_top10 uq_clean_test_bt_dedup_top20
 
-for task in uq_clean_test; do
+for task in uq_clean_test uq_clean_train test uq_clean_test_inp uq_clean_test_bt_dedup uq_clean_test_ret uq_clean_test_ret_bt_dedup uq_clean_test_ret_bt_dedup_inp uq_clean_train_inp uq_clean_train_bt_dedup uq_clean_train_ret uq_clean_train_ret_bt_dedup uq_clean_train_ret_bt_dedup_inp test_inp test_bt_dedup test_ret test_ret_bt_dedup test_ret_bt_dedup_inp uq_clean_test_bt_dedup_top20; do
     for model in 3B; do
-        if [[ $task == 'uq_sub_test' ]]; then
-            output_root=output/exp/uq_sub_test/dev
-            mix=uq_sub_test_mix
-            split=dev
-        elif [[ $task == 'uq_test' ]]; then
-            output_root=output/exp/uq_test/dev
-            mix=uq_test_mix
-            split=dev
-        elif [[ $task == 'uq_clean_test' ]]; then
-            output_root=output/exp/uq_clean_test/dev/nolennorm
+        if [[ $task == 'uq_clean_test' ]]; then
+            output_root=output/exp/uq_clean_test/dev_nolennorm
             mix=uq_clean_test_mix
             split=dev
         elif [[ $task == 'uq_clean_test_inp' ]]; then
-            output_root=output/exp/uq_clean_test/dev/inp
+            output_root=output/exp/uq_clean_test/dev_nolennorm/inp
             mix=uq_clean_test_inp_mix
             split=dev
-        elif [[ $task == 'uq_clean_test_bt' ]]; then
-            output_root=output/exp/uq_clean_test/dev/bt
-            mix=uq_clean_test_bt_replace_mix
-            split=dev
         elif [[ $task == 'uq_clean_test_bt_dedup' ]]; then
-            output_root=output/exp/uq_clean_test/dev/bt_dedup
+            output_root=output/exp/uq_clean_test/dev_nolennorm/bt_dedup
             mix=uq_clean_test_bt_dedup_replace_mix
             split=dev
-        elif [[ $task == 'uq_clean_test_bt_dedup_top10' ]]; then
-            output_root=output/exp/uq_clean_test/dev/bt_dedup_top10
-            mix=uq_clean_test_bt_dedup_top10_replace_mix
-            split=dev
         elif [[ $task == 'uq_clean_test_bt_dedup_top20' ]]; then
-            output_root=output/exp/uq_clean_test/dev/bt_dedup_top20
+            output_root=output/exp/uq_clean_test/dev_nolennorm/bt_dedup_top20
             mix=uq_clean_test_bt_dedup_top20_replace_mix
             split=dev
         elif [[ $task == 'uq_clean_test_ret' ]]; then
-            output_root=output/exp/uq_clean_test/dev/ret
+            output_root=output/exp/uq_clean_test/dev_nolennorm/ret
             mix=uq_clean_test_ret_drqa_3s_mix
             split=dev
-        elif [[ $task == 'uq_clean_test_ret_bt' ]]; then
-            output_root=output/exp/uq_clean_test/dev/ret_bt
-            mix=uq_clean_test_ret_drqa_3s_bt_replace_mix
-            split=dev
         elif [[ $task == 'uq_clean_test_ret_bt_dedup' ]]; then
-            output_root=output/exp/uq_clean_test/dev/ret_bt_dedup
+            output_root=output/exp/uq_clean_test/dev_nolennorm/ret_bt_dedup
             mix=uq_clean_test_ret_drqa_3s_bt_dedup_replace_mix
             split=dev
-        elif [[ $task == 'uq_clean_test_ret_bt_inp' ]]; then
-            output_root=output/exp/uq_clean_test/dev/ret_bt_inp
-            mix=uq_clean_test_ret_drqa_3s_bt_replace_inp_mix
-            split=dev
         elif [[ $task == 'uq_clean_test_ret_bt_dedup_inp' ]]; then
-            output_root=output/exp/uq_clean_test/dev/ret_bt_dedup_inp
+            output_root=output/exp/uq_clean_test/dev_nolennorm/ret_bt_dedup_inp
             mix=uq_clean_test_ret_drqa_3s_bt_dedup_replace_inp_mix
             split=dev
         elif [[ $task == 'uq_clean_train' ]]; then
-            output_root=output/exp/uq_clean_train/dev
+            output_root=output/exp/uq_clean_train/dev_nolennorm
             mix=uq_clean_train_mix
             split=dev
         elif [[ $task == 'uq_clean_train_inp' ]]; then
-            output_root=output/exp/uq_clean_train/dev/inp
+            output_root=output/exp/uq_clean_train/dev_nolennorm/inp
             mix=uq_clean_train_inp_mix
             split=dev
-        elif [[ $task == 'uq_clean_train_bt' ]]; then
-            output_root=output/exp/uq_clean_train/dev/bt
-            mix=uq_clean_train_bt_replace_mix
-            split=dev
         elif [[ $task == 'uq_clean_train_bt_dedup' ]]; then
-            output_root=output/exp/uq_clean_train/dev/bt_dedup
+            output_root=output/exp/uq_clean_train/dev_nolennorm/bt_dedup
             mix=uq_clean_train_bt_dedup_replace_mix
             split=dev
         elif [[ $task == 'uq_clean_train_ret' ]]; then
-            output_root=output/exp/uq_clean_train/dev/ret
+            output_root=output/exp/uq_clean_train/dev_nolennorm/ret
             mix=uq_clean_train_ret_drqa_3s_mix
             split=dev
-        elif [[ $task == 'uq_clean_train_ret_bt' ]]; then
-            output_root=output/exp/uq_clean_train/dev/ret_bt
-            mix=uq_clean_train_ret_drqa_3s_bt_replace_mix
-            split=dev
         elif [[ $task == 'uq_clean_train_ret_bt_dedup' ]]; then
-            output_root=output/exp/uq_clean_train/dev/ret_bt_dedup
+            output_root=output/exp/uq_clean_train/dev_nolennorm/ret_bt_dedup
             mix=uq_clean_train_ret_drqa_3s_bt_dedup_replace_mix
             split=dev
-        elif [[ $task == 'uq_clean_train_ret_bt_inp' ]]; then
-            output_root=output/exp/uq_clean_train/dev/ret_bt_inp
-            mix=uq_clean_train_ret_drqa_3s_bt_replace_inp_mix
-            split=dev
         elif [[ $task == 'uq_clean_train_ret_bt_dedup_inp' ]]; then
-            output_root=output/exp/uq_clean_train/dev/ret_bt_dedup_inp
+            output_root=output/exp/uq_clean_train/dev_nolennorm/ret_bt_dedup_inp
             mix=uq_clean_train_ret_drqa_3s_bt_dedup_replace_inp_mix
             split=dev
         elif [[ $task == 'test' ]]; then
-            output_root=output/exp/test/test
+            output_root=output/exp/test/test_nolennorm
             mix=test_mix
             split=test
         elif [[ $task == 'test_inp' ]]; then
-            output_root=output/exp/test/test/inp
+            output_root=output/exp/test/test_nolennorm/inp
             mix=test_inp_mix
             split=test
-        elif [[ $task == 'test_bt' ]]; then
-            output_root=output/exp/test/test/bt
-            mix=test_bt_replace_mix
-            split=test
         elif [[ $task == 'test_bt_dedup' ]]; then
-            output_root=output/exp/test/test/bt_dedup
+            output_root=output/exp/test/test_nolennorm/bt_dedup
             mix=test_bt_dedup_replace_mix
             split=test
         elif [[ $task == 'test_ret' ]]; then
-            output_root=output/exp/test/test/ret
+            output_root=output/exp/test/test_nolennorm/ret
             mix=test_ret_drqa_3s_mix
             split=test
-        elif [[ $task == 'test_ret_bt' ]]; then
-            output_root=output/exp/test/test/ret_bt
-            mix=test_ret_drqa_3s_bt_replace_mix
-            split=test
         elif [[ $task == 'test_ret_bt_dedup' ]]; then
-            output_root=output/exp/test/test/ret_bt_dedup
+            output_root=output/exp/test/test_nolennorm/ret_bt_dedup
             mix=test_ret_drqa_3s_bt_dedup_replace_mix
             split=test
-        elif [[ $task == 'test_ret_bt_inp' ]]; then
-            output_root=output/exp/test/test/ret_bt_inp
-            mix=test_ret_drqa_3s_bt_replace_inp_mix
-            split=test
         elif [[ $task == 'test_ret_bt_dedup_inp' ]]; then
-            output_root=output/exp/test/test/ret_bt_dedup_inp
+            output_root=output/exp/test/test_nolennorm/ret_bt_dedup_inp
             mix=test_ret_drqa_3s_bt_dedup_replace_inp_mix
             split=test
         fi
