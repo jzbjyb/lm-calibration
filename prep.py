@@ -28,8 +28,8 @@ from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE
 from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_OL, \
   UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S, \
   UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S_BT, \
-  UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_FIRST_DECODE_TOPK_UQ3B_GS, \
-  UNIFIEDQA_RAW_FIRST_DECODE_TOPK_UQ3B_GS_RET_DRQA, UNIFIEDQA_RAW_FIRST_DECODE_TOPK_UQ3B_GS_RET_DRQA_3S
+  UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS, \
+  UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA_3S
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test, TEST_PREP_GS, TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, \
   TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, TEST_PREP_GS_RET_DRQA_3S_BT_REP, TEST_PREP_GS_BT_DEDUP, \
@@ -315,7 +315,7 @@ def convert_first_token_decoding(from_dir: str, to_dir: str, domains: List[Tuple
   print('all {} miss {} multi first token {}'.format(all_count, miss_count, multi_first_count))
 
 
-def get_topk_decodes(answer: str, candidate_li: List[List[int]], logprob_li: List[List[float]], end_logprob_li: List[List[float]], vocab, num_spans: int, span_len: int, remove_dup: bool=True, end_sym: int=1):
+def get_topk_decodes(answer: str, candidate_li: List[List[int]], logprob_li: List[List[float]], end_logprob_li: List[List[float]], vocab, num_spans: int, span_len: int, remove_dup: bool=True, end_sym: int=1, use_gold: bool=True):
   can2prob: Dict[str, float] = defaultdict(lambda: 1000)
   for candidate, logprob, end_logprob in zip(candidate_li, logprob_li, end_logprob_li):
     prev_lp = 0
@@ -324,17 +324,19 @@ def get_topk_decodes(answer: str, candidate_li: List[List[int]], logprob_li: Lis
       lp = prev_lp + logprob[i - 1] + end_logprob[i]
       prev_lp += logprob[i - 1]
       can2prob[can] = min(can2prob[can], lp)
-  # remove answer
-  for a in [answer.lower(), answer.lower().rstrip('.'), answer.lower() + '.']:
-    if a in can2prob:
-      del can2prob[a]
+  answer_set = {answer.lower(), answer.lower().rstrip('.'), answer.lower() + '.'}
+  if use_gold:
+    # remove answer
+    for a in answer_set:
+      if a in can2prob:
+        del can2prob[a]
   # rank
   can2prob = sorted(can2prob.items(), key=lambda x: -x[1])
   if remove_dup:
     # remove dup
     dedup_can2prob = []
     dup_can2prob = []
-    canset: Set[str] = {answer.lower()}
+    canset: Set[str] = {answer.lower()} if use_gold else set()
     for c, p in can2prob:
       dup = False
       for _c in canset:
@@ -349,12 +351,16 @@ def get_topk_decodes(answer: str, candidate_li: List[List[int]], logprob_li: Lis
       else:
         dup_can2prob.append((c, p))
     can2prob = dedup_can2prob + dup_can2prob
-  can2prob = can2prob[:num_spans - 1]
-  return [answer] + [c for c, p in can2prob]
+  if use_gold:
+    can2prob = can2prob[:num_spans - 1]
+    return [(answer, 1)] + [(c, 0) for c, p in can2prob]
+  else:
+    return [(c, int(c in answer_set)) for c, p in can2prob][:num_spans]
 
 
-def convert_first_token_decoding_topk(gold_dir: str, from_dir: str, to_dir: str, domains: List[Tuple], split: str, score_file: str, format: str='tsv', num_spans: int=5, span_len: int=20):
+def convert_first_token_decoding_topk(gold_dir: str, from_dir: str, to_dir: str, domains: List[Tuple], split: str, score_file: str, format: str='tsv', num_spans: int=5, span_len: int=20, use_gold: bool=True):
   vocab = get_default_vocabulary()
+  count_correct = count = 0
   with open(score_file, 'r') as score_fin:
     for domain, _ in domains:
       gold_file = os.path.join(gold_dir, domain, split + '.' + format)
@@ -372,10 +378,12 @@ def convert_first_token_decoding_topk(gold_dir: str, from_dir: str, to_dir: str,
 
           if prev_lid is not None and lid != prev_lid:
             question, answer = gold_fin.readline().rstrip('\n').split('\t')
-            decodes = get_topk_decodes(answer, candidate_li, logprob_li, end_logprob_li, vocab, num_spans=num_spans, span_len=span_len)
+            decodes = get_topk_decodes(answer, candidate_li, logprob_li, end_logprob_li, vocab, num_spans=num_spans, span_len=span_len, use_gold=use_gold)
             assert len(decodes) == num_spans
-            for i, de in enumerate(decodes):
-              fout.write('{}\t{}\t{}\t{}\n'.format(prev_lid, question, de, 'True' if i == 0 else 'False'))
+            for i, (de, correct) in enumerate(decodes):
+              fout.write('{}\t{}\t{}\t{}\n'.format(prev_lid, question, de, 'True' if correct else 'False'))
+              count += 1
+              count_correct += correct
             candidate_li = []
             logprob_li = []
             end_logprob_li = []
@@ -392,10 +400,13 @@ def convert_first_token_decoding_topk(gold_dir: str, from_dir: str, to_dir: str,
 
         if len(candidate_li) > 0:
           question, answer = gold_fin.readline().rstrip('\n').split('\t')
-          decodes = get_topk_decodes(answer, candidate_li, logprob_li, end_logprob_li, vocab, num_spans=num_spans, span_len=span_len)
+          decodes = get_topk_decodes(answer, candidate_li, logprob_li, end_logprob_li, vocab, num_spans=num_spans, span_len=span_len, use_gold=use_gold)
           assert len(decodes) == num_spans
-          for i, de in enumerate(decodes):
-            fout.write('{}\t{}\t{}\t{}\n'.format(lid, question, de, 'True' if i == 0 else 'False'))
+          for i, (de, correct) in enumerate(decodes):
+            fout.write('{}\t{}\t{}\t{}\n'.format(lid, question, de, 'True' if correct else 'False'))
+            count += 1
+            count_correct += correct
+  print('#correct {} #all {}'.format(count_correct, count))
 
 
 def replace_in_ques_bt(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', splits_restrict: Set[str]=None):
@@ -651,8 +662,8 @@ if __name__ == '__main__':
     truncate_ret_sent(UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_DEDUP_GS_RET_DRQA_3S, domains=EXT_DOMAINS, num_sent=3)
     retrieve_aug(UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA, EXT_DOMAINS, splits_restrict={'dev'})
     truncate_ret_sent(UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S, domains=EXT_DOMAINS, num_sent=3)
-    retrieve_aug(UNIFIEDQA_RAW_FIRST_DECODE_TOPK_UQ3B_GS, UNIFIEDQA_RAW_FIRST_DECODE_TOPK_UQ3B_GS_RET_DRQA, [('ropes', ('train', 'dev'))], splits_restrict={'dev'})
-    truncate_ret_sent(UNIFIEDQA_RAW_FIRST_DECODE_TOPK_UQ3B_GS_RET_DRQA, UNIFIEDQA_RAW_FIRST_DECODE_TOPK_UQ3B_GS_RET_DRQA_3S, domains=[('ropes', ('train', 'dev'))], num_sent=3)
+    retrieve_aug(UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA, EXT_DOMAINS, splits_restrict={'dev'})
+    truncate_ret_sent(UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA_3S, domains=EXT_DOMAINS, num_sent=3)
 
   if task == 'combine_ret_bt':
     combine_ret_bt(UNIFIEDQA_PREP_GS_RET_DRQA_3S, UNIFIEDQA_PREP_GS_BT_REP,
@@ -708,9 +719,13 @@ if __name__ == '__main__':
     duplicate(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DUP_GS, EXT_DOMAINS, dup_count=10)
 
   if task == 'first_decode':
-    convert_first_token_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, [('ropes', ('train', 'dev'))],
-                                 split='dev', score_file='output/exp/uq_ext/dev/3B/uq.txt')
+    convert_first_token_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS,
+                                 EXT_DOMAINS, split='dev', score_file='output/exp/uq_ext/dev/3B/uq.txt')
+    convert_first_token_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS,
+                                 EXT_DOMAINS, split='train', score_file='output/exp/uq_ext/dev/3B/uq.txt')
 
   if task == 'first_decode_topk':
-    convert_first_token_decoding_topk(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_FIRST_DECODE_TOPK_UQ3B_GS,
-                                      [('ropes', ('train', 'dev'))], split='dev', score_file='output/exp/uq_ext_first/dev/3B/uq.txt')
+    convert_first_token_decoding_topk(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS,
+                                      EXT_DOMAINS, split='dev', score_file='output/exp/uq_ext_first/dev/3B/uq.txt', use_gold=True)
+    convert_first_token_decoding_topk(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS,
+                                      EXT_DOMAINS, split='dev', score_file='output/exp/uq_ext_first/dev/3B/uq.txt', use_gold=False)
