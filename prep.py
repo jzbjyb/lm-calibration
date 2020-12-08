@@ -29,7 +29,8 @@ from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, UNIFIEDQA_RAW
   UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S, \
   UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_BT, UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS_RET_DRQA_3S_BT, \
   UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS, \
-  UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA_3S
+  UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA, \
+  UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS_OL
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test, TEST_PREP_GS, TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, \
   TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, TEST_PREP_GS_RET_DRQA_3S_BT_REP, TEST_PREP_GS_BT_DEDUP, \
@@ -722,10 +723,15 @@ if __name__ == '__main__':
     convert_first_token_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS,
                                  EXT_DOMAINS, split='dev', score_file='output/exp/uq_ext/dev/3B/uq.txt')
     convert_first_token_decoding(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS,
-                                 EXT_DOMAINS, split='train', score_file='output/exp/uq_ext/dev/3B/uq.txt')
+                                 EXT_DOMAINS, split='train', score_file='output/exp/uq_ext/train/3B/uq.txt')
 
   if task == 'first_decode_topk':
     convert_first_token_decoding_topk(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS,
                                       EXT_DOMAINS, split='dev', score_file='output/exp/uq_ext_first/dev/3B/uq.txt', use_gold=True)
     convert_first_token_decoding_topk(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS,
                                       EXT_DOMAINS, split='dev', score_file='output/exp/uq_ext_first/dev/3B/uq.txt', use_gold=False)
+    convert_first_token_decoding_topk(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS,
+                                      EXT_DOMAINS, split='train', score_file='output/exp/uq_ext_first/train/3B/uq.txt', use_gold=True)
+    convert_first_token_decoding_topk(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS,
+                                      EXT_DOMAINS, split='train', score_file='output/exp/uq_ext_first/train/3B/uq.txt', use_gold=False)
+    multi2one_all(UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS_OL, EXT_DOMAINS, num_sep=5)
