@@ -29,6 +29,7 @@ if __name__ == '__main__':
   parser.add_argument('--max_token_per_batch', type=int, default=1024)
   parser.add_argument('--has_ret', action='store_true')
   parser.add_argument('--use_inp', action='store_true')
+  parser.add_argument('--append_a', action='store_true')
   args = parser.parse_args()
   device = 'cuda'
   max_input_len = 512
@@ -38,7 +39,7 @@ if __name__ == '__main__':
   model = GPT2LMHeadModel.from_pretrained(args.model).to(device)
   tokenizer = GPT2TokenizerFast.from_pretrained(args.model)
   print('init data')
-  data = read_qa_data(args.data, eval(args.domains.upper()), split=args.split, has_ret=args.has_ret, use_inp=args.use_inp)
+  data = read_qa_data(args.data, eval(args.domains.upper()), split=args.split, has_ret=args.has_ret, use_inp=args.use_inp, append_a=args.append_a)
   iter = string_to_tensor(tokenizer, data, max_input_len=max_input_len, max_target_len=max_target_len,
                           add_eos=True, pad_to_max=False, max_token_per_batch=args.max_token_per_batch, device=device)
 

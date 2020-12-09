@@ -89,9 +89,13 @@ def string_to_tensor(tokenizer,
   '''
 
 
-def compute_logprob(model, input_dict: Dict[str, torch.Tensor]):
-  outputs = model(**input_dict, labels=input_dict['input_ids'])
+def compute_logprob(model, input_dict: Dict[str, torch.Tensor]):  # first token is omitted
+  labels = input_dict['input_ids']
+  outputs = model(**input_dict, labels=labels)
   logits = outputs.logits.detach()
   logprobs = F.log_softmax(logits, dim=-1)
-  logprobs = torch.gather(logprobs, -1, input_dict['input_ids'].unsqueeze(-1)).squeeze(-1)
+  #logprobs = torch.gather(logprobs, -1, input_dict['input_ids'].unsqueeze(-1)).squeeze(-1)
+  logprobs = torch.gather(logprobs[:, :-1, :], -1, labels[:, 1:].unsqueeze(-1)).squeeze(-1)
+  first_lps = torch.zeros_like(logprobs[:, :1])  # assume the first token always have prob of 1
+  logprobs = torch.cat([first_lps, logprobs], 1)
   return logprobs
