@@ -312,6 +312,7 @@ def read_score_data(filename: str, mixture: str, split: str,
         logprob = [float(i) for i in logprob.split(',')]
         inp_tokens = vocab.decode(inp_tokens)
         tgt_tokens = [vocab.decode([i]) for i in tgt_tokens]
+        #score = np.sum(logprob[:len(tgt_tokens) - 1])
         logprob = (task, inp, tgt_tokens, logprob[:len(tgt_tokens)], int(weight == 1))  # inp has '\n'
         score = float(score)
       else:

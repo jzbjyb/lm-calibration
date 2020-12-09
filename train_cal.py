@@ -25,6 +25,8 @@ def read_data(filename: str, mixture: str, split: str, **kwargs):
   inp_perp_li: List[List[float]] = []
 
   for sample in read_score_data(filename, mixture, split, **kwargs):
+    if np.sum(sample['target']) <= 0:  # skip examples without gold
+      continue
     scores_li.append(sample['log_prob'])
     score_var_li.append(sample['prob_var'])
     input_len_li.append(sample['input_len'])
