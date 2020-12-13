@@ -1,9 +1,11 @@
 import argparse
 import os
+import random
 from tqdm import tqdm
 import numpy as np
+import torch
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
-from model.data import read_qa_data
+from model.data import read_qa_data, compose_few_shots
 from model.gpt2 import string_to_tensor, compute_logprob
 CLEAN_TEST_DOMAINS = [('arc_hard', ('train', 'dev', 'test')),
                       ('ai2_science_middle', ('train', 'dev', 'test')),
@@ -17,6 +19,11 @@ CLEAN_TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                        ('winogrande_l', ('train', 'dev')),
                        ('commonsenseqa', ('train', 'dev', 'test')),
                        ('physical_iqa', ('train', 'dev', 'test'))]
+SEED = 2020
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='score targets using models from transformers')
@@ -24,6 +31,9 @@ if __name__ == '__main__':
   parser.add_argument('--data', type=str, help='path to the data')
   parser.add_argument('--domains', type=str, default='clean_test_domains')
   parser.add_argument('--split', type=str, help='split', default='dev')
+  parser.add_argument('--fewshot', type=int, default=0)
+  parser.add_argument('--fewshot_data', type=str, help='path to few shot data', default=None)
+  parser.add_argument('--fewshot_domains', type=str, default='clean_test_domains')
   parser.add_argument('--output', type=str, help='output file')
   parser.add_argument('--batch_size', type=int, help='batch size', default=0)
   parser.add_argument('--max_token_per_batch', type=int, default=1024)
@@ -35,13 +45,21 @@ if __name__ == '__main__':
   max_input_len = 512
   max_target_len = 128
 
-  print('loading models ...')
-  model = GPT2LMHeadModel.from_pretrained(args.model).to(device)
-  tokenizer = GPT2TokenizerFast.from_pretrained(args.model)
   print('init data')
-  data = read_qa_data(args.data, eval(args.domains.upper()), split=args.split, has_ret=args.has_ret, use_inp=args.use_inp, append_a=args.append_a)
+  fewshot = None
+  if args.fewshot:
+    data_fs = read_qa_data(args.fewshot_data, eval(args.fewshot_domains.upper()), split='train', has_ret=False, use_inp=False, append_a=False, only_correct=True)
+    data_fs = [(q, a) for q, a in data_fs if len(q) <= 256]
+    print('totally {} data for few shot sampling'.format(len(data_fs)))
+    random.shuffle(data_fs)
+    fewshot = compose_few_shots(data_fs[:args.fewshot])
+  data = read_qa_data(args.data, eval(args.domains.upper()), split=args.split, has_ret=args.has_ret, use_inp=args.use_inp, append_a=args.append_a, fewshot=fewshot)
+  tokenizer = GPT2TokenizerFast.from_pretrained(args.model)
   iter = string_to_tensor(tokenizer, data, max_input_len=max_input_len, max_target_len=max_target_len,
                           add_eos=True, pad_to_max=False, max_token_per_batch=args.max_token_per_batch, device=device)
+
+  print('loading models ...')
+  model = GPT2LMHeadModel.from_pretrained(args.model).to(device)
 
   os.makedirs(os.path.dirname(args.output), exist_ok=True)
   pbar = tqdm()
