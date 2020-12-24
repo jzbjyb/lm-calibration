@@ -120,7 +120,8 @@ def qa_dataset_fn(split: str,
                   domain: str=None,
                   format: str='tsv',
                   use_neg: bool=False,
-                  neg_method: str='weight'):
+                  neg_method: str='weight',
+                  only_question: bool=False):
   if domain:
     file = os.path.join(bucket, domain, split + '.' + format)
   else:
@@ -131,6 +132,8 @@ def qa_dataset_fn(split: str,
     num_parallel_calls=tf.data.experimental.AUTOTUNE)
   def map_fn(ind: str, question: str, answer: str, correct: str):
     question = tf.strings.regex_replace(question, '\\\\n', '\n')
+    if only_question:
+      question = tf.strings.split(question, '\n')[0]
     is_correct = correct == 'True'
     if neg_method == 'weight':
       return ind, question, answer, 1.0 if is_correct else -1.0 / 4
@@ -150,7 +153,8 @@ def qa_dataset_onlyinput_fn(split: str,
                             shuffle_files: bool=False,
                             bucket: str='',
                             domain: str=None,
-                            format: str='tsv'):
+                            format: str='tsv',
+                            only_question: bool=False):
   if domain:
     file = os.path.join(bucket, domain, split + '.' + format)
   else:
@@ -161,6 +165,8 @@ def qa_dataset_onlyinput_fn(split: str,
     num_parallel_calls=tf.data.experimental.AUTOTUNE)
   def map_fn(ind: str, question: str, answer: str, correct: str):
     question = tf.strings.regex_replace(question, '\\\\n', '\n')
+    if only_question:
+      question = tf.strings.split(question, '\n')[0]
     return ind, '', question, 1.0
   ds = ds.map(lambda *ex: dict(zip(['ind', 'question', 'answer', 'weights'], map_fn(*ex))))
   return ds
@@ -174,7 +180,8 @@ def qa_dataset_fn_ret(split: str,
                       num_ret: int=5,
                       ret_ind: int=0,
                       ret_method: str='q-prepend',
-                      onlyinput: bool=False):
+                      onlyinput: bool=False,
+                      only_question: bool=False):
   ret_method = set(ret_method.split('-'))
   if domain:
     file = os.path.join(bucket, domain, split + '.' + format)
@@ -186,6 +193,8 @@ def qa_dataset_fn_ret(split: str,
     num_parallel_calls=tf.data.experimental.AUTOTUNE)
   def map_fn(ind: str, question: str, answer: str, correct: str, *rets):
     question = tf.strings.regex_replace(question, '\\\\n', '\n')
+    if only_question:
+      question = tf.strings.split(question, '\n')[0]
     is_correct = correct == 'True'
     qrs, ars = rets[:num_ret], rets[num_ret:]
     if 'q' in ret_method:

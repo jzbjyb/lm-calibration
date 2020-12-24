@@ -17,8 +17,8 @@ tpu=$1
 
 # uq_clean_test_bt_dedup_top10 uq_clean_test_bt_dedup_top20
 : '
-for task in uq_clean_test_ret_bt_dedup_inp uq_clean_train_inp uq_clean_train_bt_dedup uq_clean_train_ret uq_clean_train_ret_bt_dedup uq_clean_train_ret_bt_dedup_inp test_inp test_bt_dedup test_ret test_ret_bt_dedup test_ret_bt_dedup_inp uq_clean_test_bt_dedup_top20; do
-    for model in 3B; do
+for task in test test_inp test_bt_dedup test_ret test_ret_bt_dedup test_ret_bt_dedup_inp; do
+    for model in 11B; do
         if [[ $task == 'uq_clean_test' ]]; then
             output_root=output/exp/uq_clean_test/dev_nolennorm
             mix=uq_clean_test_mix

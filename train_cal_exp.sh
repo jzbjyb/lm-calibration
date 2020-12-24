@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # mc
-: '
-for model_type in 3B; do
-    for train_set in uq_clean_train uq_clean_test; do
+
+for model_type in 11B; do
+    for train_set in uq_clean_train; do
         # temp
         python train_cal.py --model temp --mix ${train_set}_mix --split dev \
             --score output/exp/${train_set}/dev_nolennorm/${model_type}/uq_ft_margin.txt &> output/exp/model_nolennorm/temp/${model_type}_${train_set}_ft_margin.out
@@ -28,9 +28,9 @@ for model_type in 3B; do
             --out output/exp/model_nolennorm/xgb/${model_type}_${train_set}_${suffix}_ft_margin.bin &> output/exp/model_nolennorm/xgb/${model_type}_${train_set}_${suffix}_ft_margin.out
     done
 done
-'
-# ext
 
+# ext
+: '
 for model_type in 3B; do
     for train_set in uq_ext_train_span_topk_nogold uq_ext_test_span_topk_nogold; do
         if [[ $train_set == 'uq_ext_train' ]]; then
@@ -73,3 +73,4 @@ for model_type in 3B; do
 
     done
 done
+'

@@ -212,6 +212,12 @@ def acc(mixture: str, score_files: List[str], split: str='dev', num_bt: int=1,
       margin = np.array(scores_ranked) - np.array([0] + scores_ranked[:-1])
       margin_order = margin * np.array((1.0 - np.array(scores_ranked))[1:].tolist() + [1.0])
       scores = margin_order[argind]
+    elif norm == 'margin_order_nosm':
+      argind = np.argsort(np.argsort(scores))
+      scores_ranked = sorted(scores)
+      margin = np.array(scores_ranked) - np.array([0] + scores_ranked[:-1])
+      margin_order = margin * np.array((1.0 - np.array(scores_ranked))[1:].tolist() + [1.0])
+      scores = margin_order[argind]
     else:
       raise NotImplementedError
     assert len(scores) == len(weights) and len(scores) % num_bt == 0, 'wrong correspondence'
@@ -390,7 +396,7 @@ if __name__ == '__main__':
   parser.add_argument('--num_bt', type=int, help='number of translations per example', default=1)
   parser.add_argument('--temp', type=float, help='temperature of softmax', default=1.0)
   parser.add_argument('--xgb', type=str, help='xgb model path', default=None)
-  parser.add_argument('--norm', type=str, help='normalization method', default='softmax', choices=['softmax', 'no', 'margin', 'margin_order'])
+  parser.add_argument('--norm', type=str, help='normalization method', default='softmax', choices=['softmax', 'no', 'margin', 'margin_order', 'margin_order_nosm'])
   parser.add_argument('--ana', type=str, help='ana path', default=None)
   args = parser.parse_args()
   if args.mn is not None:
