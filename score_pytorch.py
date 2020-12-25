@@ -27,7 +27,8 @@ torch.manual_seed(SEED)
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='score targets using models from transformers')
-  parser.add_argument('--model', type=str, help='model name', default='gpt2-xl')
+  parser.add_argument('--model', type=str, help='model name', default='gpt2-large')
+  parser.add_argument('--checkpoint', type=str, help='path to the checkpoint', default=None)
   parser.add_argument('--data', type=str, help='path to the data')
   parser.add_argument('--domains', type=str, default='clean_test_domains')
   parser.add_argument('--split', type=str, help='split', default='dev')
@@ -36,7 +37,7 @@ if __name__ == '__main__':
   parser.add_argument('--fewshot_domains', type=str, default='clean_test_domains')
   parser.add_argument('--output', type=str, help='output file')
   parser.add_argument('--batch_size', type=int, help='batch size', default=0)
-  parser.add_argument('--max_token_per_batch', type=int, default=1024)
+  parser.add_argument('--max_token_per_batch', type=int, default=2048)
   parser.add_argument('--has_ret', action='store_true')
   parser.add_argument('--use_inp', action='store_true')
   parser.add_argument('--append_a', action='store_true')
@@ -59,7 +60,10 @@ if __name__ == '__main__':
                           add_eos=True, pad_to_max=False, max_token_per_batch=args.max_token_per_batch, device=device)
 
   print('loading models ...')
-  model = GPT2LMHeadModel.from_pretrained(args.model).to(device)
+  if args.checkpoint:
+    model = GPT2LMHeadModel.from_pretrained(args.model, state_dict=torch.load(args.checkpoint)).to(device)
+  else:
+    model = GPT2LMHeadModel.from_pretrained(args.model).to(device)
 
   os.makedirs(os.path.dirname(args.output), exist_ok=True)
   pbar = tqdm()

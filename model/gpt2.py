@@ -17,13 +17,13 @@ def string_to_tensor(tokenizer,
   max_len_per_example: int = 0
   for input, target in data:
     # tokenize
-    t_input = tokenizer(input)
-    t_target = tokenizer(target)
+    t_input = tokenizer.batch_encode_plus([input])
+    t_target = tokenizer.batch_encode_plus([target])
     # truncate
-    inp = t_input['input_ids'][:max_input_len]
-    tar = t_target['input_ids'][:max_target_len - int(add_eos)]
-    inp_att = t_input['attention_mask'][:max_input_len]
-    tar_att = t_target['attention_mask'][:max_target_len - int(add_eos)]
+    inp = t_input['input_ids'][0][:max_input_len]
+    tar = t_target['input_ids'][0][:max_target_len - int(add_eos)]
+    inp_att = t_input['attention_mask'][0][:max_input_len]
+    tar_att = t_target['attention_mask'][0][:max_target_len - int(add_eos)]
     # add eos
     if add_eos:
       tar.append(tokenizer.eos_token_id)
@@ -58,41 +58,12 @@ def string_to_tensor(tokenizer,
     combine['attention_mask'] = pad_sequence([torch.LongTensor(i) for i in combine['attention_mask']],
                                              batch_first=True, padding_value=0).to(device)
     yield combine, split_point
-  '''
-  assert len(inputs) == len(targets)
-  t_inputs = tokenizer(inputs)
-  t_targets = tokenizer(targets)
-  combine = {k: [] for k in t_inputs}
-  split_point = []
-  for i in range(len(inputs)):
-    inp = t_inputs['input_ids'][i][:max_input_len]
-    tar = t_targets['input_ids'][i][:max_target_len - int(add_eos)]
-    inp_att = t_inputs['attention_mask'][i][:max_input_len]
-    tar_att = t_targets['attention_mask'][i][:max_target_len - int(add_eos)]
-    if add_eos:
-      tar.append(tokenizer.eos_token_id)
-      tar_att.append(1)
-    comb_ids = inp + tar
-    comb_mask = inp_att + tar_att
-    if i == 0 and pad_to_max:
-      assert len(comb_ids) <= max_input_len + max_target_len and len(comb_ids) == len(comb_mask)
-      comb_ids += [0] * (max_input_len + max_target_len - len(comb_ids))
-      comb_mask += [0] * (max_input_len + max_target_len - len(comb_mask))
-    combine['input_ids'].append(comb_ids)
-    combine['attention_mask'].append(comb_mask)
-    split_point.append(len(inp))
-  combine['input_ids'] = pad_sequence([torch.LongTensor(i) for i in combine['input_ids']],
-                                      batch_first=True, padding_value=0).to(device)
-  combine['attention_mask'] = pad_sequence([torch.LongTensor(i) for i in combine['attention_mask']],
-                                           batch_first=True, padding_value=0).to(device)
-  return combine, split_point
-  '''
 
 
 def compute_logprob(model, input_dict: Dict[str, torch.Tensor]):  # first token is omitted
   labels = input_dict['input_ids']
   outputs = model(**input_dict, labels=labels)
-  logits = outputs.logits.detach()
+  logits = outputs[1].detach()
   logprobs = F.log_softmax(logits, dim=-1)
   #logprobs = torch.gather(logprobs, -1, input_dict['input_ids'].unsqueeze(-1)).squeeze(-1)
   logprobs = torch.gather(logprobs[:, :-1, :], -1, labels[:, 1:].unsqueeze(-1)).squeeze(-1)
