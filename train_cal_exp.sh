@@ -30,7 +30,7 @@ for model_type in 11B; do
 done
 
 # ext
-: '
+
 for model_type in 3B; do
     for train_set in uq_ext_train_span_topk_nogold uq_ext_test_span_topk_nogold; do
         if [[ $train_set == 'uq_ext_train' ]]; then
@@ -73,4 +73,3 @@ for model_type in 3B; do
 
     done
 done
-'

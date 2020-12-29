@@ -1,6 +1,7 @@
 from typing import List, Dict, Union, Tuple
 import argparse
 import os
+from tqdm import tqdm
 from operator import itemgetter
 import numpy as np
 from scipy.special import softmax
@@ -418,4 +419,4 @@ if __name__ == '__main__':
     analysis(ana_datas, args.ana, 500)
   else:
     acc(args.mix[0], args.score, args.split, args.num_bt, args.temp, norm=args.norm, xgb_model_path=args.xgb,
-        ana=args.ana, method=args.method, inp_perp=args.inp_perp, topk=args.topk, m_per_n=args.mn)
+        ana=args.ana, method=args.method, inp_perp=args.inp_perp, topk=args.topk, m_per_n=args.mn, fast=True)

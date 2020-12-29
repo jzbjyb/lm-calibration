@@ -10,7 +10,7 @@ from tqdm import tqdm
 from scipy.special import softmax
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from dataset.utils import IND2CHAR, CHAR2IND
+from dataset.utils import IND2CHAR, CHAR2IND, normalize_answer
 from dataset.unifiedqa import UNIFIEDQA_GS, UNIFIEDQA_PREP_GS, UNIFIEDQA_PREP_GS_OL, \
   UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_DECODE_GS, UNIFIEDQA_RAW_DECODE_GS_OL, UNIFIEDQA_PREP_GS_BT, UNIFIEDQA_PREP_GS_BT_REP,\
   DOMAINS, SUB_TEST_DOMAINS, TEST_DOMAINS, EXT_DOMAINS, MULTI_CHOICE, UNIFIEDQA_PREP_GS_RET_DRQA, UNIFIEDQA_PREP_GS_RET_DRQA_3S, \
@@ -362,9 +362,9 @@ def get_topk_decodes(answer: str, candidate_li: List[List[int]], logprob_li: Lis
 
 def convert_first_token_decoding_topk(gold_dir: str, from_dir: str, to_dir: str, domains: List[Tuple], split: str, score_file: str, format: str='tsv', num_spans: int=5, span_len: int=20, use_gold: bool=True):
   vocab = get_default_vocabulary()
-  count_correct = count = 0
   with open(score_file, 'r') as score_fin:
     for domain, _ in domains:
+      count_correct = count = 0
       gold_file = os.path.join(gold_dir, domain, split + '.' + format)
       from_file = os.path.join(from_dir, domain, split + '.' + format)
       to_file = os.path.join(to_dir, domain, split + '.' + format)
@@ -408,7 +408,7 @@ def convert_first_token_decoding_topk(gold_dir: str, from_dir: str, to_dir: str,
             fout.write('{}\t{}\t{}\t{}\n'.format(lid, question, de, 'True' if correct else 'False'))
             count += 1
             count_correct += correct
-  print('#correct {} #all {}'.format(count_correct, count))
+      print('#correct {} #all {}'.format(count_correct, count))
 
 
 def replace_in_ques_bt(from_bk, to_bk, domains: List[Tuple[str, List[str]]], format: str='tsv', splits_restrict: Set[str]=None):
@@ -739,3 +739,7 @@ if __name__ == '__main__':
     convert_first_token_decoding_topk(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS,
                                       EXT_DOMAINS, split='train', score_file='output/exp/uq_ext_first/train/3B/uq.txt', use_gold=False)
     multi2one_all(UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS_OL, EXT_DOMAINS, num_sep=5)
+
+  if task == 'ext_verify':
+    convert_first_token_decoding_topk(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS + '_test',
+                                      EXT_DOMAINS, split='dev', score_file='output/exp/uq_ext_first/dev/3B/uq.txt', use_gold=False, num_spans=1)

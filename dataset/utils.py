@@ -3,6 +3,7 @@ import os
 import functools
 import tensorflow as tf
 import numpy as np
+import string
 from collections import defaultdict
 import re
 import gin
@@ -264,6 +265,19 @@ def get_m_per_n(arr: List, mn: Tuple[int, int]):
   return new_arr
 
 
+def normalize_answer(s):
+  def remove_articles(text):
+    return re.sub(r'\b(a|an|the)\b', ' ', text)
+  def white_space_fix(text):
+    return ' '.join(text.split())
+  def remove_punc(text):
+    exclude = set(string.punctuation)
+    return ''.join(ch for ch in text if ch not in exclude)
+  def lower(text):
+    return text.lower()
+  return white_space_fix(remove_articles(remove_punc(lower(s))))
+
+
 def read_score_data(filename: str, mixture: str, split: str,
                     topk: int=None, m_per_n: Tuple[int, int]=None, filter_func: Callable=None, **kwargs):
   if filter_func is None:
@@ -281,6 +295,7 @@ def read_score_data(filename: str, mixture: str, split: str,
     prev_inp = None
     prev_ind = None
     prev_task = None
+    prev_gold = None
     scores = []
     input_len = []
     target_len = []
@@ -316,14 +331,14 @@ def read_score_data(filename: str, mixture: str, split: str,
         score = float(score)
       elif len(ls) in {4, 6, 7}:
         score, inp_tokens, tgt_tokens, logprob = ls[:4]
-        inp_tokens = [int(i) for i in inp_tokens.split(',0', 1)[0].split(',')]
-        tgt_tokens = [int(i) for i in tgt_tokens.split(',0', 1)[0].split(',')]
-        logprob = [float(i) for i in logprob.split(',')]
-        inp_tokens = vocab.decode(inp_tokens)
-        tgt_tokens = [vocab.decode([i]) for i in tgt_tokens]
-        #score = np.sum(logprob[:len(tgt_tokens) - 1])
-        logprob = (task, inp, tgt_tokens, logprob[:len(tgt_tokens)], int(weight == 1))  # inp has '\n'
         score = float(score)
+        if 'fast' not in kwargs or not kwargs['fast']:
+          tgt_tokens = [int(i) for i in tgt_tokens.split(',0', 1)[0].split(',')]
+          logprob = [float(i) for i in logprob.split(',')]
+          tgt_tokens = [vocab.decode([i]) for i in tgt_tokens]
+          logprob = (task, inp, tgt_tokens, logprob[:len(tgt_tokens)], int(weight == 1))  # inp has '\n'
+        else:
+          logprob = None
       else:
         raise NotImplementedError
       if prev_ind is not None and (prev_task != task or prev_ind != ind):
@@ -358,10 +373,17 @@ def read_score_data(filename: str, mixture: str, split: str,
       input_texts.append(ex['inputs_plaintext'].numpy().decode('utf-8'))
       target_texts.append(ex['targets_plaintext'].numpy().decode('utf-8'))
       logprobs.append(logprob)
-      targets.append(int(weight == 1))
       prev_inp = inp
       prev_ind = ind
       prev_task = task
+      '''
+      if weight == 1:
+        prev_gold = ex['targets_plaintext'].numpy().decode('utf-8')
+      else:
+        cur = ex['targets_plaintext'].numpy().decode('utf-8')
+        weight = int(normalize_answer(cur) == normalize_answer(prev_gold))
+      '''
+      targets.append(int(weight == 1))
     if len(scores) > 0:
       var = np.var(np.exp(np.array(scores)))
       score_var = [var] * len(scores)
