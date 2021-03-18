@@ -26,6 +26,9 @@ UNIFIEDQA_PREP_GS_BT_DEDUP_TOP20_REP = 'gs://neulab-qa/data/unifiedqa_bt_dedup_t
 UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_REP = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s_bt_replace'
 UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_DEDUP_REP = 'gs://neulab-qa/data/unifiedqa_ret_drqa_3s_bt_dedup_replace'
 
+UNIFIEDQA_MH_GS_OL = 'gs://neulab-qa/data/mh_oneline'
+UNIFIEDQA_MH_MULTIHOP_GS_OL = 'gs://neulab-qa/data/mh_mh_oneline'
+
 UNIFIEDQA_RAW_DECODE_GS = 'gs://neulab-qa/data/unifiedqa_decode'
 UNIFIEDQA_RAW_DECODE_GS_ANS = 'gs://neulab-qa/data/unifiedqa_decode_ans'
 UNIFIEDQA_RAW_DECODE_GS_ANS_NO = 'gs://neulab-qa/data/unifiedqa_decode_ans_no'
@@ -63,7 +66,8 @@ UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA = 'gs://neulab-qa/data/un
 UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA_3S = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_span_topk_nogold_ret_drqa_3s'
 UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA_3S_BT = 'gs://neulab-qa/data/unifiedqa_decode_uq3B_span_topk_nogold_ret_drqa_3s_bt_dedup'
 
-
+MH_DOMAINS = [('hotpotqa', ('train', 'dev')),
+              ('complexwebq', ('train', 'dev'))]
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
                  ('openbookqa', ('train', 'dev', 'test')),
@@ -194,6 +198,31 @@ def multi2one(in_fname: str, out_fname: str, num_sep: int=10):
 
 @gin.configurable
 def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-prepend'):
+  for domain, splits in MH_DOMAINS:
+    t5.data.TaskRegistry.add(
+      'uq_mh_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_mh_mh_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+
+  t5.data.MixtureRegistry.remove('uq_mh_ol_mix')
+  t5.data.MixtureRegistry.add('uq_mh_ol_mix', ['uq_mh_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_mh_mh_ol_mix')
+  t5.data.MixtureRegistry.add('uq_mh_mh_ol_mix', ['uq_mh_mh_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
+
   for domain, splits in DOMAINS:
     # multi-line tasks
     t5.data.TaskRegistry.add(

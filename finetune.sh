@@ -35,6 +35,17 @@ elif [[ $format == 'ext' ]]; then
         tpb=3200  # 128 * 5 * 5
         train_steps=1125000
     fi
+elif [[ $format == 'mh' ]]; then
+    num_sep=1
+    inp_len=512
+    tgt_len=128  # 128 * 1
+    if [[ $from_model == '3B' ]]; then
+        tpb=16384  # 128 * 1 * 128
+        train_steps=1105000
+    elif [[ $from_model == '11B' ]]; then
+        tpb=2048  # 128 * 1 * 16
+        train_steps=1125000
+    fi
 fi
 
 echo $tpu_name $from_model $to_model $loss $mix $split $format
