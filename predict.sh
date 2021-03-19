@@ -4,22 +4,23 @@ tpu_name=$1  # default-dgdw2, jzb
 
 # model parameter
 model_type=$2  # 3B, 11B
-model_dir=gs://neulab-qa/unifiedqa/models/${model_type}
-step=1100500
-output=$3
+model_dir=$3  # models/*, ft_models/*
+model_dir=gs://neulab-qa/unifiedqa/${model_dir}
+step=$4  # 1100500
+output=$5
 
 # dataset parameter
-mix=$4
-split=$5
-search_alg=sample_decode
+mix=$6
+split=$7
+search_alg=greedy_decode
 beam_size=1
-temp=2.5
+temp=1.0
 max_decode_length=128
 
 if [[ $model_type == '3B' ]]; then
     tpb=131072
 elif [[ $model_type == '11B' ]]; then
-    tpb=65536
+    tpb=16384
 fi
 inp_len=512
 tgt_len=128
