@@ -32,6 +32,7 @@ from dataset.unifiedqa import UNIFIEDQA_RAW_DECODE_UQ3B_SAMPLE_GS, UNIFIEDQA_RAW
   UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA, \
   UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA_3S, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_GS_OL, \
   UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA_3S_BT, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_BT
+from dataset.unifiedqa import MH_DOMAINS
 from dataset.unifiedqa import one2multi as one2multi_uq, multi2one
 from dataset.test import one2multi as one2multi_test, TEST_PREP_GS, TEST_PREP_GS_RET_DRQA, TEST_PREP_GS_RET_DRQA_3S, \
   TEST_PREP_GS_BT, TEST_PREP_GS_BT_REP, TEST_PREP_GS_RET_DRQA_3S_BT_REP, TEST_PREP_GS_BT_DEDUP, \
@@ -638,6 +639,34 @@ def get_top_bt(fom_bk: str, bt_bk: str, to_bk: str, domains: List[Tuple[str, Lis
       print(in_fname, out_fname, 'outofbound', out_of_bound_count, all_count)
 
 
+def reducehop_first(raw_reducehop_dir: str, reducehop_first_dir: str, num_hop: int=2):
+  for root, dir, files in os.walk(raw_reducehop_dir):
+    for file in files:
+      from_file = os.path.join(root, file)
+      to_file = from_file.replace(raw_reducehop_dir, reducehop_first_dir)
+      os.makedirs(os.path.dirname(to_file), exist_ok=True)
+      with open(from_file, 'r') as fin, open(to_file, 'w') as fout:
+        for i, l in enumerate(fin):
+          if i % num_hop == 0:
+            fout.write(l)
+
+
+def reducehop_second(raw_reducehop_dir: str, prediction_path: str, reducehop_second_dir: str,
+                     num_hop: int=2, domains: List[Tuple]=None, split: str='dev'):
+  with open(prediction_path, 'r') as pfin:
+    for domain, splits in domains:
+      from_file = os.path.join(raw_reducehop_dir, domain, split + '.tsv')
+      to_file = os.path.join(reducehop_second_dir, domain, split + '.tsv')
+      os.makedirs(os.path.dirname(to_file), exist_ok=True)
+      with open(from_file, 'r') as ffin, open(to_file, 'w') as fout:
+        for i, l in enumerate(ffin):
+          if i % num_hop == 1:
+            l = l.rstrip('\n').split('\t')
+            p = pfin.readline().strip()
+            l[1] = p
+            fout.write('\t'.join(l) + '\n')
+
+
 if __name__ == '__main__':
   task = sys.argv[1]
 
@@ -743,3 +772,15 @@ if __name__ == '__main__':
   if task == 'ext_verify':
     convert_first_token_decoding_topk(UNIFIEDQA_RAW_GS, UNIFIEDQA_RAW_FIRST_DECODE_UQ3B_GS, UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS + '_test',
                                       EXT_DOMAINS, split='dev', score_file='output/exp/uq_ext_first/dev/3B/uq.txt', use_gold=False, num_spans=1)
+
+  if task == 'reducehop_first':
+    raw_reducehop_dir = 'data/mh_mh_reducehop_oneline'
+    reducehop_first_dir = 'data/mh_mh_reducehop_first_oneline'
+    reducehop_first(raw_reducehop_dir, reducehop_first_dir, num_hop=2)
+
+  if task == 'reducehop_second':
+    raw_reducehop_dir = 'data/mh_mh_reducehop_oneline'
+    reducehop_second_dir = 'data/mh_mh_reducehop_second_oneline'
+    prediction_path = 'output/multihop/uq_mh_mh_reducehop_first_ol_mix/dev/11B_mh_mh_reducehop_lr1e3.txt-1200000'
+    reducehop_second(raw_reducehop_dir, prediction_path, reducehop_second_dir,
+                     num_hop=2, domains=MH_DOMAINS, split='dev')
