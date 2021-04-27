@@ -29,6 +29,7 @@ UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_DEDUP_REP = 'gs://neulab-qa/data/unifiedqa_ret_
 UNIFIEDQA_MH_GS_OL = 'gs://neulab-qa/data/mh_oneline'
 UNIFIEDQA_MH_DEV_GS_OL = 'gs://neulab-qa/data/mh_dev_oneline'
 UNIFIEDQA_MH_MULTIHOP_GS_OL = 'gs://neulab-qa/data/mh_mh_oneline'
+UNIFIEDQA_MH_MULTIHOP_PATH_GS_OL = 'gs://neulab-qa/data/mh_mh_path_oneline'
 UNIFIEDQA_MH__SM_GS_OL = 'gs://neulab-qa/data/mh_-sm_oneline'
 UNIFIEDQA_MH_S_M_GS_OL = 'gs://neulab-qa/data/mh_s-m_oneline'
 UNIFIEDQA_MH_MULTIHOP_REDUCEHOP_GS_OL = 'gs://neulab-qa/data/mh_mh_reducehop_oneline'
@@ -272,6 +273,15 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
     t5.data.TaskRegistry.add(
+      'uq_mh_mh_path_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_PATH_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
       'uq_mh_mh_reducehop_{}_ol'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_REDUCEHOP_GS_OL, domain=domain, num_sep=1),
@@ -313,6 +323,8 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
   t5.data.MixtureRegistry.add('uq_mh__sm_ol_mix', ['uq_mh__sm_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_mh_mh_ol_mix')
   t5.data.MixtureRegistry.add('uq_mh_mh_ol_mix', ['uq_mh_mh_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_mh_mh_path_ol_mix')
+  t5.data.MixtureRegistry.add('uq_mh_mh_path_ol_mix', ['uq_mh_mh_path_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_mh_mh_reducehop_ol_mix')
   t5.data.MixtureRegistry.add('uq_mh_mh_reducehop_ol_mix', ['uq_mh_mh_reducehop_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_mh_mh_reducehop_first_ol_mix')

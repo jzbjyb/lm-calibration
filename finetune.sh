@@ -44,7 +44,7 @@ elif [[ $format == 'mh' ]]; then
         train_steps=1105000
     elif [[ $from_model == '11B' ]]; then
         tpb=2048  # 128 * 1 * 16
-        train_steps=1210000
+        train_steps=1200000
     fi
 fi
 
