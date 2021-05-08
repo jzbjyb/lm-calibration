@@ -29,6 +29,8 @@ UNIFIEDQA_PREP_GS_RET_DRQA_3S_BT_DEDUP_REP = 'gs://neulab-qa/data/unifiedqa_ret_
 UNIFIEDQA_MH_GS_OL = 'gs://neulab-qa/data/mh_oneline'
 UNIFIEDQA_MH_DEV_GS_OL = 'gs://neulab-qa/data/mh_dev_oneline'
 UNIFIEDQA_MH_MULTIHOP_GS_OL = 'gs://neulab-qa/data/mh_mh_oneline'
+UNIFIEDQA_MH_MULTIHOP_CWQ_ELQ_GS_OL = 'gs://neulab-qa/data/mh_mh_cwq_elq_oneline'
+UNIFIEDQA_MH_MULTIHOP_DEDUP_GS_OL = 'gs://neulab-qa/data/mh_mh_dedup_oneline'
 UNIFIEDQA_MH_MULTIHOP_PATH_GS_OL = 'gs://neulab-qa/data/mh_mh_path_oneline'
 UNIFIEDQA_MH_MULTIHOP_PATH_INVERSE_GS_OL = 'gs://neulab-qa/data/mh_mh_path_inverse_oneline'
 UNIFIEDQA_MH_MULTIHOP_HINT_GS_OL = 'gs://neulab-qa/data/mh_mh_hint_oneline'
@@ -38,6 +40,7 @@ UNIFIEDQA_MH_MULTIHOP_REDUCEHOP_GS_OL = 'gs://neulab-qa/data/mh_mh_reducehop_one
 UNIFIEDQA_MH_MULTIHOP_REDUCEHOP_FIRST_GS_OL = 'gs://neulab-qa/data/mh_mh_reducehop_first_oneline'
 UNIFIEDQA_MH_MULTIHOP_REDUCEHOP_SECOND_GS_OL = 'gs://neulab-qa/data/mh_mh_reducehop_second_oneline'
 UNIFIEDQA_MH_MULTIHOP_IMPLICIT_GS_OL = 'gs://neulab-qa/data/mh_mh_implicit_oneline'
+UNIFIEDQA_MH_MULTIHOP_IMPLICIT_NOMH_GS_OL = 'gs://neulab-qa/data/mh_mh_implicit_nomh_oneline'
 UNIFIEDQA_MH_MULTIHOP_EXPLICIT_GS_OL = 'gs://neulab-qa/data/mh_mh_explicit_oneline'
 UNIFIEDQA_MH_FIRST_GS_OL = 'gs://neulab-qa/data/mh_first_oneline'
 UNIFIEDQA_MH_FIRST_HINT_GS_OL = 'gs://neulab-qa/data/mh_first_hint_oneline'
@@ -328,6 +331,24 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
     t5.data.TaskRegistry.add(
+      'uq_mh_mh_cwq_elq_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_CWQ_ELQ_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_mh_mh_dedup_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_DEDUP_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
       'uq_mh_mh_path_{}_ol'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_PATH_GS_OL, domain=domain, num_sep=1),
@@ -367,6 +388,15 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       'uq_mh_mh_implicit_{}_ol'.format(domain),
       dataset_fn=functools.partial(
         qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_IMPLICIT_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_mh_mh_implicit_nomh_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_IMPLICIT_NOMH_GS_OL, domain=domain, num_sep=1),
       splits=splits,
       text_preprocessor=[trivia_preprocessor],
       token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
@@ -433,6 +463,10 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
   t5.data.MixtureRegistry.add('uq_mh__sm_ol_mix', ['uq_mh__sm_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_mh_mh_ol_mix')
   t5.data.MixtureRegistry.add('uq_mh_mh_ol_mix', ['uq_mh_mh_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_mh_mh_cwq_elq_ol_mix')
+  t5.data.MixtureRegistry.add('uq_mh_mh_cwq_elq_ol_mix', ['uq_mh_mh_cwq_elq_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_mh_mh_dedup_ol_mix')
+  t5.data.MixtureRegistry.add('uq_mh_mh_dedup_ol_mix', ['uq_mh_mh_dedup_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_mh_mh_path_ol_mix')
   t5.data.MixtureRegistry.add('uq_mh_mh_path_ol_mix', ['uq_mh_mh_path_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_mh_mh_path_inverse_ol_mix')
@@ -443,6 +477,8 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
   t5.data.MixtureRegistry.add('uq_mh_mh_reducehop_ol_mix', ['uq_mh_mh_reducehop_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_mh_mh_implicit_ol_mix')
   t5.data.MixtureRegistry.add('uq_mh_mh_implicit_ol_mix', ['uq_mh_mh_implicit_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_mh_mh_implicit_nomh_ol_mix')
+  t5.data.MixtureRegistry.add('uq_mh_mh_implicit_nomh_ol_mix', ['uq_mh_mh_implicit_nomh_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_mh_mh_explicit_ol_mix')
   t5.data.MixtureRegistry.add('uq_mh_mh_explicit_ol_mix', ['uq_mh_mh_explicit_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_mh_mh_reducehop_first_ol_mix')
