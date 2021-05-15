@@ -16,6 +16,7 @@ tpu=$1
 ./finetune.sh $tpu 11B 11B_mh_mh_explicit_lr1e3 noloss uq_mh_mh_explicit_ol_mix train mh &> output/log/ft_11B_mh_mh_explicit_lr1e3.out
 
 ./finetune.sh $tpu 11B 11B_mh_mh_implicit_nomh_lr1e3 noloss uq_mh_mh_implicit_nomh_ol_mix train mh &> output/log/ft_11B_mh_mh_implicit_nomh_lr1e3.out
+./finetune.sh $tpu 11B 11B_mh_mh_cwq_elq_implicit_nomh_lr1e3 noloss uq_mh_mh_cwq_elq_implicit_nomh_ol_mix train mh &> output/log/ft_11B_mh_mh_cwq_elq_implicit_nomh_lr1e3.out
 
 #./finetune.sh $tpu 11B 11B_mh_dev_lr1e3 noloss uq_mh_dev_ol_mix train mh &> output/log/11B_mh_dev_lr1e3.out
 ./finetune.sh jzb4 11B 11B_mh_mh_lr1e3_alltheway_dev noloss uq_mh_dev_ol_mix train mh &> output/log/ft_11B_mh_mh_lr1e3_alltheway_dev.out
