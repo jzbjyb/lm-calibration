@@ -52,6 +52,9 @@ UNIFIEDQA_MH_SECOND_ALLTHEWAY_GS_OL = 'gs://neulab-qa/data/mh_second_alltheway_o
 UNIFIEDQA_MH_SECOND_HINT_GS_OL = 'gs://neulab-qa/data/mh_second_hint_oneline'
 UNIFIEDQA_MH_MULTIHOP_STATEMENT_GS_OL = 'gs://neulab-qa/data/mh_mh_statement_oneline'
 
+UNIFIEDQA_MH_TOY_GS_OL = 'gs://neulab-qa/data/toy'
+UNIFIEDQA_MH_TOY_BAL_GS_OL = 'gs://neulab-qa/data/toy_balanced'
+
 UNIFIEDQA_RAW_DECODE_GS = 'gs://neulab-qa/data/unifiedqa_decode'
 UNIFIEDQA_RAW_DECODE_GS_ANS = 'gs://neulab-qa/data/unifiedqa_decode_ans'
 UNIFIEDQA_RAW_DECODE_GS_ANS_NO = 'gs://neulab-qa/data/unifiedqa_decode_ans_no'
@@ -93,6 +96,8 @@ UNIFIEDQA_RAW_DECODE_UQ3B_SPAN_TOPK_NOGOLD_GS_RET_DRQA_3S_BT = 'gs://neulab-qa/d
 #              ('complexwebq', ('train', 'dev'))]
 MH_DOMAINS = [('complexwebq', ('train', 'dev'))]
 HP_MH_DOMAINS = [('hotpotqa', ('train', 'dev'))]
+TOY_DOMAINS = [('trex', ('test'))]
+
 TRAIN_DOMAINS = [('arc_easy', ('train', 'dev', 'test')),
                  ('ai2_science_elementary', ('train', 'dev', 'test')),
                  ('openbookqa', ('train', 'dev', 'test')),
@@ -223,6 +228,25 @@ def multi2one(in_fname: str, out_fname: str, num_sep: int=10):
 
 @gin.configurable
 def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-prepend'):
+  for domain, splits in TOY_DOMAINS:
+    t5.data.TaskRegistry.add(
+      'uq_toy_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_TOY_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_toy_bal_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_TOY_BAL_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
   for domain, splits in HP_MH_DOMAINS:
     t5.data.TaskRegistry.add(
       'uq_mh_mh_{}_ol'.format(domain),
@@ -513,6 +537,11 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
 
   t5.data.MixtureRegistry.remove('uq_mh_mh_hp_ol_mix')
   t5.data.MixtureRegistry.add('uq_mh_mh_hp_ol_mix', ['uq_mh_mh_{}_ol'.format(domain) for domain, _ in HP_MH_DOMAINS], default_rate=1.0)
+
+  t5.data.MixtureRegistry.remove('uq_toy_ol_mix')
+  t5.data.MixtureRegistry.add('uq_toy_ol_mix', ['uq_toy_{}_ol'.format(domain) for domain, _ in TOY_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_toy_bal_ol_mix')
+  t5.data.MixtureRegistry.add('uq_toy_bal_ol_mix', ['uq_toy_bal_{}_ol'.format(domain) for domain, _ in TOY_DOMAINS], default_rate=1.0)
 
   for domain, splits in DOMAINS:
     # multi-line tasks

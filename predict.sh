@@ -24,7 +24,7 @@ elif [[ $model_type == '11B' ]]; then
 fi
 inp_len=512
 tgt_len=128
-gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/${model_type}
+gin_model_dir=gs://neulab-qa/t5/${model_type}
 model_parallelism=8
 
 mkdir -p $(dirname "${output}")
