@@ -51,7 +51,7 @@ fi
 echo $tpu_name $from_model $to_model $loss $mix $split $format
 echo 'num sep' $num_sep 'inp len' $inp_len 'tgt len' $tgt_len 'token per batch' $tpb 'step' $train_steps
 
-gin_model_dir=gs://neulab-qa/t5-data/pretrained_models/${from_model}
+model_gin_file=t5_${from_model}_operative_config.gin
 from_model=gs://neulab-qa/unifiedqa/models/${from_model}/model.ckpt-1100500
 to_model_dir=gs://neulab-qa/unifiedqa/ft_models/${to_model}
 model_parallelism=8
@@ -61,7 +61,7 @@ model_parallelism=8
     --gcp_project="${PROJECT}" \
     --tpu_zone="${ZONE}" \
     --model_dir="${to_model_dir}" \
-    --gin_file="${gin_model_dir}/operative_config.gin" \
+    --gin_file="${model_gin_file}" \
     --t5_tfds_data_dir="${DATA_DIR}" \
     --gin_file="dataset.gin" \
     --gin_file="learning_rate_schedules/constant_0_001.gin" \

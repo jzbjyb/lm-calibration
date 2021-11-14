@@ -24,7 +24,7 @@ elif [[ $model_type == '11B' ]]; then
 fi
 inp_len=512
 tgt_len=128
-gin_model_dir=gs://neulab-qa/t5/${model_type}
+model_gin_file=t5_${model_type}_operative_config.gin
 model_parallelism=8
 
 mkdir -p $(dirname "${output}")
@@ -34,7 +34,7 @@ mkdir -p $(dirname "${output}")
     --gcp_project="${PROJECT}" \
     --tpu_zone="${ZONE}" \
     --model_dir="${model_dir}" \
-    --gin_file="${gin_model_dir}/operative_config.gin" \
+    --gin_file="${model_gin_file}" \
     --t5_tfds_data_dir="${DATA_DIR}" \
     --gin_file="infer.gin" \
     --gin_file="${search_alg}.gin" \
