@@ -33,6 +33,9 @@ UNIFIEDQA_MH_MULTIHOP_SQL_SIMPLE_GS_OL = 'gs://neulab-qa/data/mh_mh_sql_simple_o
 UNIFIEDQA_MH_MULTIHOP_SQL_SIMPLE_COMBINE_GS_OL = 'gs://neulab-qa/data/mh_mh_sql_simple_combine_oneline'
 UNIFIEDQA_MH_MULTIHOP_SQL_GS_OL = 'gs://neulab-qa/data/mh_mh_sql_oneline'
 UNIFIEDQA_MH_MULTIHOP_SQL_COMBINE_GS_OL = 'gs://neulab-qa/data/mh_mh_sql_combine_oneline'
+UNIFIEDQA_MH_MULTIHOP_SQL_COMBINE_NOMH_GS_OL = 'gs://neulab-qa/data/mh_mh_sql_combine_nomh_oneline'
+UNIFIEDQA_MH_MULTIHOP_SQL_COMBINE_NONLMH_GS_OL = 'gs://neulab-qa/data/mh_mh_sql_combine_nonlmh_oneline'
+UNIFIEDQA_MH_MULTIHOP_SQL_COMBINE_CONCAT_GS_OL = 'gs://neulab-qa/data/mh_mh_sql_combine_concat_as_mh_oneline'
 UNIFIEDQA_MH_MULTIHOP_CWQ_ELQ_GS_OL = 'gs://neulab-qa/data/mh_mh_cwq_elq_oneline'
 UNIFIEDQA_MH_MULTIHOP_DEDUP_GS_OL = 'gs://neulab-qa/data/mh_mh_dedup_oneline'
 UNIFIEDQA_MH_MULTIHOP_PATH_GS_OL = 'gs://neulab-qa/data/mh_mh_path_oneline'
@@ -407,6 +410,33 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
       token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
       postprocess_fn=t5.data.postprocessors.lower_text,
       metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_mh_mh_sql_combine_nomh_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_SQL_COMBINE_NOMH_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_mh_mh_sql_combine_nonlmh_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_SQL_COMBINE_NONLMH_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
+    t5.data.TaskRegistry.add(
+      'uq_mh_mh_sql_combine_concat_as_mh_{}_ol'.format(domain),
+      dataset_fn=functools.partial(
+        qa_dataset_fn_oneline, bucket=UNIFIEDQA_MH_MULTIHOP_SQL_COMBINE_CONCAT_GS_OL, domain=domain, num_sep=1),
+      splits=splits,
+      text_preprocessor=[trivia_preprocessor],
+      token_preprocessor=[functools.partial(concat_preprocessor, num_sep=1)],
+      postprocess_fn=t5.data.postprocessors.lower_text,
+      metric_fns=[t5.evaluation.metrics.accuracy])
 
     t5.data.TaskRegistry.add(
       'uq_mh_mh_cwq_elq_{}_ol'.format(domain),
@@ -559,6 +589,13 @@ def build_uq(neg_method: str='indicator', ret_ind: int=0, ret_method: str='q-pre
   t5.data.MixtureRegistry.add('uq_mh_mh_sql_ol_mix', ['uq_mh_mh_sql_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
   t5.data.MixtureRegistry.remove('uq_mh_mh_sql_combine_ol_mix')
   t5.data.MixtureRegistry.add('uq_mh_mh_sql_combine_ol_mix', ['uq_mh_mh_sql_combine_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
+
+  t5.data.MixtureRegistry.remove('uq_mh_mh_sql_combine_nomh_ol_mix')
+  t5.data.MixtureRegistry.add('uq_mh_mh_sql_combine_nomh_ol_mix', ['uq_mh_mh_sql_combine_nomh_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_mh_mh_sql_combine_nonlmh_ol_mix')
+  t5.data.MixtureRegistry.add('uq_mh_mh_sql_combine_nonlmh_ol_mix', ['uq_mh_mh_sql_combine_nonlmh_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
+  t5.data.MixtureRegistry.remove('uq_mh_mh_sql_combine_concat_as_mh_ol_mix')
+  t5.data.MixtureRegistry.add('uq_mh_mh_sql_combine_concat_as_mh_ol_mix', ['uq_mh_mh_sql_combine_concat_as_mh_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)
 
   t5.data.MixtureRegistry.remove('uq_mh_mh_cwq_elq_ol_mix')
   t5.data.MixtureRegistry.add('uq_mh_mh_cwq_elq_ol_mix', ['uq_mh_mh_cwq_elq_{}_ol'.format(domain) for domain, _ in MH_DOMAINS], default_rate=1.0)

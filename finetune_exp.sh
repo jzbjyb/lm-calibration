@@ -16,6 +16,10 @@ tpu=$1
 ./finetune.sh $tpu 11B 11B_uq_mh_mh_sql_simple_ol_mix noloss uq_mh_mh_sql_simple_ol_mix train mh &> output/log/ft_11B_uq_mh_mh_sql_simple_ol_mix.out
 ./finetune.sh $tpu 11B 11B_uq_mh_mh_sql_simple_combine_ol_mix noloss uq_mh_mh_sql_simple_combine_ol_mix train mh &> output/log/ft_11B_uq_mh_mh_sql_simple_combine_ol_mix.out
 
+./finetune.sh $tpu 11B 11B_uq_mh_mh_sql_combine_nomh_ol_mix noloss uq_mh_mh_sql_combine_nomh_ol_mix train mh &> output/log/ft_11B_uq_mh_mh_sql_combine_nomh_ol_mix.out
+./finetune.sh $tpu 11B 11B_uq_mh_mh_sql_combine_nonlmh_ol_mix noloss uq_mh_mh_sql_combine_nonlmh_ol_mix train mh &> output/log/ft_11B_uq_mh_mh_sql_combine_nonlmh_ol_mix.out
+./finetune.sh $tpu 11B 11B_uq_mh_mh_sql_combine_concat_as_mh_ol_mix noloss uq_mh_mh_sql_combine_concat_as_mh_ol_mix train mh &> output/log/ft_11B_uq_mh_mh_sql_combine_concat_as_mh_ol_mix.out
+
 ./finetune.sh $tpu 11B 11B_mh_mh_reducehop_lr1e3 noloss uq_mh_mh_reducehop_ol_mix train mh &> output/log/ft_11B_mh_mh_reducehop_lr1e3.out
 
 ./finetune.sh $tpu 11B 11B_mh_mh_implicit_lr1e3 noloss uq_mh_mh_implicit_ol_mix train mh &> output/log/ft_11B_mh_mh_implicit_lr1e3.out
